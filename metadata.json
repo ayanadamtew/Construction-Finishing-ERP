@@ -1,0 +1,6 @@
+{
+  "name": "Construction & Finishing Material Store ERP",
+  "description": "Mobile-first SKU-free ERP and inventory management system for construction and finishing material stores with ETB multi-item POS, supplier cost tracking, and physical ground-stock audits.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

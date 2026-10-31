@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-canvas: #F6F5F1;
+    --bg-surface: #FFFFFF;
+    --bg-subtle: #ECEAE3;
+    --border-hairline: #DCD9D0;
+    --text-primary: #14171A;
+    --text-secondary: #4A5056;
+    --text-muted: #6E757C;
+    --accent-primary: #B84A14;
+    --accent-hover: #963B0E;
+    --status-success: #166534;
+    --status-warning: #9A3412;
+    --status-danger: #B91C1C;
+  }
+
+  body {
+    font-family: 'Public Sans', 'Noto Sans Ethiopic', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', sans-serif;
+    text-wrap: balance;
+  }
+
+  .font-mono-tabular {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
