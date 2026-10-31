@@ -316,7 +316,7 @@ All domain and API errors use a deterministic structure containing a machine-rea
 
 ---
 
-## 14. Project Folder Structure
+### 14. Project Folder Structure
 
 ### 14.1 Existing Workspace Structure (Node.js / Express + TypeScript + Mobile-First UI)
 ```text
@@ -327,28 +327,36 @@ All domain and API errors use a deterministic structure containing a machine-rea
 │   ├── SRS.md                       # Software Requirements Specification
 │   ├── ARCHITECTURE.md              # Technical architecture (this document)
 │   ├── DATABASE_DESIGN.md           # Database schema & storage specification
-│   └── API_CONTRACT.md              # REST API endpoint specification
+│   ├── API_CONTRACT.md              # REST API endpoint specification
+│   └── UI_UX_SPEC.md                # Mobile-first UI/UX & Warm Industrial Ledger spec
 ├── data/
 │   └── erp-store.json               # Persistent server-side transactional store
-├── server.ts                        # Express backend server & API routes
+├── server.ts                        # Express backend server, API routes & createErpApiApp factory
 ├── src/
 │   ├── types/
 │   │   └── erp.ts                   # Shared TypeScript interfaces & enums
+│   ├── utils/
+│   │   └── errors.ts                # Structured AppDomainError & HTTP error envelopes
 │   ├── domain/
 │   │   ├── inventoryEngine.ts       # Pure domain logic (POS, Stock-In, Audit, Costing)
-│   │   └── inventoryEngine.test.ts  # Automated unit tests (node:test)
+│   │   └── inventoryEngine.test.ts  # Automated domain unit tests (node:test)
+│   ├── api/
+│   │   ├── erpApi.ts                # Typed HTTP client for /api/* endpoints
+│   │   └── apiContract.test.ts      # Automated HTTP API contract & error-envelope tests
+│   ├── context/
+│   │   └── ErpContext.tsx           # Centralized React state & action provider
 │   ├── i18n/
 │   │   └── translations.ts          # English, Amharic (አማርኛ), Afan Oromo dictionaries + ETB formatter
 │   ├── components/
-│   │   ├── Header.tsx               # App header & EN / አማ / ORO switcher
-│   │   ├── BottomNav.tsx            # 5-tab mobile bottom navigation
-│   │   ├── DashboardView.tsx        # Revenue, profit, stock value KPIs & low-stock alerts
+│   │   ├── Header.tsx               # App header, store metrics bar & EN / አማ / ORO switcher
+│   │   ├── Navigation.tsx           # 5-tab mobile bottom nav & desktop sidebar rail
+│   │   ├── StatusBanner.tsx         # Non-blocking operational feedback & error alert banner
+│   │   ├── DashboardView.tsx        # Revenue, profit, stock value KPIs, low-stock & quick actions
 │   │   ├── MaterialsView.tsx        # SKU-free catalog & registration/edit forms
 │   │   ├── SalesPosView.tsx         # Multi-item sale cart & strict stock-floor guard
-│   │   ├── StockInView.tsx          # Restocking with supplier unit purchase cost
-│   │   ├── StockAuditView.tsx       # Physical ground-stock audit & reconciliation
-│   │   └── HistoryView.tsx          # Chronological ledger of Sales, Stock-Ins, Audits
-│   ├── App.tsx                      # Root state coordinator & view router
+│   │   ├── StockInView.tsx          # Restocking with supplier weighted-average purchase cost
+│   │   └── AuditAndLogView.tsx      # Physical ground-stock audit & unified transaction ledger
+│   ├── App.tsx                      # Root layout & 5-screen view router
 │   └── main.tsx                     # Application entry point
 └── package.json
 ```
@@ -366,7 +374,7 @@ lib/
 │   └── services/
 │       └── inventory_engine.dart    # Pure Dart port of inventoryEngine.ts
 ├── data/
-│   ├── local/                       # Drift / SQLite tables matching DATABASE_DESIGN.md
+│   ├── local/                      # Drift / SQLite tables matching DATABASE_DESIGN.md
 │   ├── remote/                      # HTTP client matching API_CONTRACT.md
 │   └── repositories/
 │       └── erp_repository.dart
@@ -380,3 +388,17 @@ lib/
         ├── stock_audit_screen.dart
         └── history_screen.dart
 ```
+
+---
+
+## 15. Development Roadmap & Completion Status
+
+| Task ID | Feature / Module | Requirements Covered | Status |
+| :--- | :--- | :--- | :--- |
+| **TASK-001** | Material Catalog & SKU-Free Registration (`MaterialsView.tsx`) | `FR-001`–`FR-005`, `BR-001`, `BR-005`, `SCR-02`, `SCR-03`, `AC-001` | Completed |
+| **TASK-002** | Multi-Item Point-of-Sale (POS) Workbench & Stock-Floor Guard (`SalesPosView.tsx`) | `FR-006`–`FR-012`, `BR-002`, `BR-003`, `FAIL-004`, `SCR-04`, `AC-002`, `AC-003` | Completed |
+| **TASK-003** | Stock-In (Supplier Restocking & Weighted-Average Costing) (`StockInView.tsx`) | `FR-013`–`FR-015`, `BR-004`, `BR-006`, `BR-007`, `SCR-05`, `AC-004` | Completed |
+| **TASK-004** | Physical Ground-Stock Audit & Transaction History Ledger (`AuditAndLogView.tsx`) | `FR-016`–`FR-019`, `FR-021`, `BR-004`, `BR-008`, `SCR-06`, `SCR-07`, `AC-005` | Completed |
+| **TASK-005** | Interactive Store Operations Dashboard & Trilingual Localization (`DashboardView.tsx`, `App.tsx`) | `FR-020`–`FR-023`, `US-006`, `US-007`, `SCR-01`, `AC-006` | Completed |
+| **TASK-006** | Automated HTTP API Contract Test Suite & Architecture Documentation Sync (`apiContract.test.ts`, `server.ts`) | `API_CONTRACT.md` (6 endpoints + error envelopes), `PROJECT_RULES.md` (§8, §10) | Completed |
+

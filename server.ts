@@ -72,9 +72,18 @@ export function saveStoreAtomically(state: ErpState): void {
   fs.renameSync(tempPath, DATA_FILE_PATH);
 }
 
-async function startServer() {
+/**
+ * Creates an Express application wired with all approved /api/* routes and
+ * the centralized AppDomainError boundary per docs/API_CONTRACT.md.
+ * Accepting optional initialState and persistFn enables fast, isolated
+ * in-memory HTTP contract tests without mutating data/erp-store.json.
+ */
+export function createErpApiApp(
+  initialState?: ErpState,
+  persistFn: (state: ErpState) => void = saveStoreAtomically
+): { app: express.Express; getState: () => ErpState } {
   const app = express();
-  let storeState: ErpState = loadOrInitializeStore();
+  const storeState: ErpState = initialState ?? loadOrInitializeStore();
 
   // Enforce 100kb payload limit per SEC-003
   app.use(express.json({ limit: '100kb' }));
@@ -99,7 +108,7 @@ async function startServer() {
       try {
         const body = (req.body ?? {}) as CreateMaterialInput;
         const material = registerMaterial(storeState, body);
-        saveStoreAtomically(storeState);
+        persistFn(storeState);
         res.status(201).json({
           material,
           materials: storeState.materials,
@@ -119,7 +128,7 @@ async function startServer() {
         const materialId = String(req.params.id ?? '');
         const body = (req.body ?? {}) as UpdateMaterialInput;
         const material = updateMaterialMetadata(storeState, materialId, body);
-        saveStoreAtomically(storeState);
+        persistFn(storeState);
         res.status(200).json({
           material,
           materials: storeState.materials,
@@ -136,7 +145,7 @@ async function startServer() {
     try {
       const body = (req.body ?? {}) as CreateSaleInput;
       const sale = recordMultiItemSale(storeState, body);
-      saveStoreAtomically(storeState);
+      persistFn(storeState);
       res.status(201).json({
         sale,
         materials: storeState.materials,
@@ -154,7 +163,7 @@ async function startServer() {
       try {
         const body = (req.body ?? {}) as CreateStockInInput;
         const { stockIn, material } = recordStockIn(storeState, body);
-        saveStoreAtomically(storeState);
+        persistFn(storeState);
         res.status(201).json({
           stockIn,
           material,
@@ -174,7 +183,7 @@ async function startServer() {
       try {
         const body = (req.body ?? {}) as CreateAuditInput;
         const audit = recordStockAudit(storeState, body);
-        saveStoreAtomically(storeState);
+        persistFn(storeState);
         res.status(201).json({
           audit,
           materials: storeState.materials,
@@ -201,6 +210,15 @@ async function startServer() {
     }
   );
 
+  return {
+    app,
+    getState: () => storeState,
+  };
+}
+
+async function startServer() {
+  const { app } = createErpApiApp();
+
   // Mount Vite dev middleware in development or static dist in production
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -223,4 +241,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  startServer();
+}
