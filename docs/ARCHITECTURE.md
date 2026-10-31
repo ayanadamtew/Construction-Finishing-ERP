@@ -361,32 +361,47 @@ All domain and API errors use a deterministic structure containing a machine-rea
 └── package.json
 ```
 
-### 14.2 Reference Flutter Android Project Structure (When Packaging Native APK)
+### 14.2 Native Flutter Android Project Structure (`/flutter_android/`)
 ```text
-lib/
-├── main.dart
-├── l10n/                            # ARB files: app_en.arb, app_am.arb, app_om.arb
-├── core/
-│   ├── constants/                   # Categories, units, ETB currency formatter
-│   └── errors/                      # DomainError codes (INSUFFICIENT_STOCK, etc.)
-├── domain/
-│   ├── models/                      # MaterialItem, SaleTransaction, StockInRecord, StockAuditRecord
-│   └── services/
-│       └── inventory_engine.dart    # Pure Dart port of inventoryEngine.ts
-├── data/
-│   ├── local/                      # Drift / SQLite tables matching DATABASE_DESIGN.md
-│   ├── remote/                      # HTTP client matching API_CONTRACT.md
-│   └── repositories/
-│       └── erp_repository.dart
-└── presentation/
-    ├── providers/                   # Riverpod notifiers
-    └── screens/
-        ├── dashboard_screen.dart
-        ├── materials_screen.dart
-        ├── sales_pos_screen.dart
-        ├── stock_in_screen.dart
-        ├── stock_audit_screen.dart
-        └── history_screen.dart
+flutter_android/
+├── pubspec.yaml                     # Flutter SDK, Riverpod, Sqflite, Intl & HTTP dependencies
+├── analysis_options.yaml            # Strict Dart/Flutter linter rules
+├── README.md                        # Android APK build & SQLite offline-first guide
+├── android/                         # Android Gradle & Manifest configuration (com.construction.erp)
+│   ├── build.gradle
+│   ├── settings.gradle
+│   ├── gradle.properties
+│   └── app/
+│       ├── build.gradle
+│       └── src/main/
+│           ├── AndroidManifest.xml
+│           └── kotlin/com/construction/erp/MainActivity.kt
+├── lib/
+│   ├── main.dart                    # Material 3 Warm Industrial Ledger shell & EN | አማ | OM switcher
+│   ├── l10n/                        # ARB files (app_en.arb, app_am.arb, app_om.arb) & ErpLocalizations
+│   ├── core/
+│   │   ├── constants/               # MaterialCategory, MaterialUnit, ErpColors & formatETB()
+│   │   └── errors/                  # AppDomainError codes (INSUFFICIENT_STOCK, etc.)
+│   ├── domain/
+│   │   ├── models/                  # MaterialItem, SaleTransaction, StockInRecord, StockAuditRecord
+│   │   └── services/
+│   │       └── inventory_engine.dart # Pure Dart port of inventoryEngine.ts (BR-001..BR-008)
+│   ├── data/
+│   │   ├── local/                   # SqliteDatabaseHelper (Sqflite tables & indexes per DATABASE_DESIGN.md §4)
+│   │   ├── remote/                  # ErpApiClient matching API_CONTRACT.md
+│   │   └── repositories/
+│   │       └── erp_repository.dart  # Offline-first repository
+│   └── presentation/
+│       ├── providers/               # Riverpod ErpController preserving draft cart & audit counts
+│       └── screens/
+│           ├── dashboard_screen.dart
+│           ├── materials_screen.dart
+│           ├── sales_pos_screen.dart
+│           ├── stock_in_screen.dart
+│           ├── stock_audit_screen.dart
+│           └── history_screen.dart
+└── test/
+    └── inventory_engine_test.dart   # Automated Flutter unit tests for domain invariants
 ```
 
 ---
@@ -401,4 +416,6 @@ lib/
 | **TASK-004** | Physical Ground-Stock Audit & Transaction History Ledger (`AuditAndLogView.tsx`) | `FR-016`–`FR-019`, `FR-021`, `BR-004`, `BR-008`, `SCR-06`, `SCR-07`, `AC-005` | Completed |
 | **TASK-005** | Interactive Store Operations Dashboard & Trilingual Localization (`DashboardView.tsx`, `App.tsx`) | `FR-020`–`FR-023`, `US-006`, `US-007`, `SCR-01`, `AC-006` | Completed |
 | **TASK-006** | Automated HTTP API Contract Test Suite & Architecture Documentation Sync (`apiContract.test.ts`, `server.ts`) | `API_CONTRACT.md` (6 endpoints + error envelopes), `PROJECT_RULES.md` (§8, §10) | Completed |
+| **TASK-007** | Native Flutter Android Mobile ERP Application (`/flutter_android/`) | `ARCHITECTURE.md` (§1, §3, §14.2), `DATABASE_DESIGN.md` (§4 SQLite DDL), `UI_UX_SPEC.md`, `FR-001`–`FR-023`, `BR-001`–`BR-008` | Completed |
+
 
