@@ -326,7 +326,7 @@ class DashboardScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                '${sale.id} • ${sale.items.length} ${i18n.t('itemsCount')} • ${sale.timestamp.split('T').first}',
+                                '${sale.id} • ${sale.items.length} ${i18n.t('itemsCount')} • ${sale.createdAt.split('T').first}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: ErpColors.textSecondary,

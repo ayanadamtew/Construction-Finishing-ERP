@@ -1,9 +1,14 @@
-import 'package:uuid/uuid.dart';
+import 'dart:math';
 import '../../core/constants/erp_constants.dart';
 import '../../core/errors/domain_error.dart';
 import '../models/erp_models.dart';
 
-const _uuid = Uuid();
+final _random = Random();
+
+String _shortId() {
+  const hex = '0123456789abcdef';
+  return List.generate(8, (_) => hex[_random.nextInt(16)]).join();
+}
 
 /// Pure domain engine enforcing all business rules (`BR-001` through `BR-008`)
 /// and acceptance criteria (`AC-001` through `AC-006`).
@@ -278,7 +283,7 @@ class InventoryEngine {
 
     final timestamp = nowIso ?? DateTime.now().toUtc().toIso8601String();
     final material = MaterialItem(
-      id: 'mat-${_uuid.v4().substring(0, 8)}',
+      id: 'mat-${_shortId()}',
       name: name,
       category: input.category,
       specs: specs,
@@ -505,7 +510,7 @@ class InventoryEngine {
 
       saleLines.add(
         SaleLineItem(
-          id: 'sli-${_uuid.v4().substring(0, 8)}',
+          id: 'sli-${_shortId()}',
           materialId: m.id,
           materialName: m.name,
           unit: m.unit,
@@ -528,7 +533,7 @@ class InventoryEngine {
     }).toList();
 
     final sale = SaleTransaction(
-      id: 'sale-${_uuid.v4().substring(0, 8)}',
+      id: 'sale-${_shortId()}',
       items: saleLines,
       totalAmount: totalAmount,
       totalCost: totalCost,
@@ -608,7 +613,7 @@ class InventoryEngine {
     );
 
     final record = StockInRecord(
-      id: 'stin-${_uuid.v4().substring(0, 8)}',
+      id: 'stin-${_shortId()}',
       materialId: existing.id,
       materialName: existing.name,
       unit: existing.unit,
@@ -710,7 +715,7 @@ class InventoryEngine {
     }).toList();
 
     final audit = StockAuditRecord(
-      id: 'aud-${_uuid.v4().substring(0, 8)}',
+      id: 'aud-${_shortId()}',
       adjustments: auditLines,
       auditNote: input.auditNote.trim(),
       createdAt: timestamp,

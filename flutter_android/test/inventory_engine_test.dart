@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:senay_construction_erp/core/constants/erp_constants.dart';
-import 'package:senay_construction_erp/core/errors/domain_error.dart';
-import 'package:senay_construction_erp/data/repositories/erp_repository.dart';
-import 'package:senay_construction_erp/domain/models/erp_models.dart';
-import 'package:senay_construction_erp/domain/services/inventory_engine.dart';
-import 'package:senay_construction_erp/l10n/erp_localizations.dart';
-import 'package:senay_construction_erp/presentation/providers/erp_providers.dart';
+import 'package:construction_material_erp/core/constants/erp_constants.dart';
+import 'package:construction_material_erp/core/errors/domain_error.dart';
+import 'package:construction_material_erp/data/repositories/erp_repository.dart';
+import 'package:construction_material_erp/domain/models/erp_models.dart';
+import 'package:construction_material_erp/domain/services/inventory_engine.dart';
+import 'package:construction_material_erp/l10n/erp_localizations.dart';
+import 'package:construction_material_erp/presentation/providers/erp_providers.dart';
 
 void main() {
   group('InventoryEngine Domain Tests (BR-001 to BR-008)', () {
