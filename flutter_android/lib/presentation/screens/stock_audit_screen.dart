@@ -12,7 +12,9 @@ class StockAuditScreen extends ConsumerWidget {
     final viewState = ref.watch(erpControllerProvider);
     final controller = ref.read(erpControllerProvider.notifier);
     final i18n = viewState.i18n;
-    final materials = viewState.erpState.materials;
+    final materials = viewState.erpState.materials
+        .where((m) => !m.isArchived)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),

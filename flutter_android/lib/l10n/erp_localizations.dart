@@ -67,6 +67,7 @@ class ErpLocalizations {
       'posCartEmpty': 'No items in current sale cart. Add materials above.',
       'posTotalAmount': 'Total Receipt (ETB)',
       'posEstimatedProfit': 'Estimated Gross Profit (ETB)',
+      'btnAddCartLine': 'Add Material to Sale Cart',
       'btnCompleteSale': 'Complete Sale & Deduct Stock',
       'stockInTitle': 'Supplier Delivery & Weighted Cost Update',
       'stockInSelectMaterial': 'Select Delivered Material',
@@ -108,6 +109,47 @@ class ErpLocalizations {
       'lblPrice': 'Sell Price',
       'lblStock': 'On Hand',
       'lblMin': 'Min Alert',
+      // Auth & User Management
+      'loginTitle': 'Authorized Staff Sign In',
+      'loginSubtitle':
+          'Pre-registered credentials required. Public sign-up is disabled.',
+      'loginUsernameOrEmail': 'Username or Email',
+      'loginPassword': 'Password',
+      'btnSignIn': 'Sign In to Ledger',
+      'btnSignOut': 'Logout',
+      'btnAdminPanel': 'Admin',
+      'adminPanelTitle': 'System Administration & Categories',
+      'tabUsers': 'Authorized Users',
+      'tabCategories': 'Material Categories',
+      'btnCreateUser': 'Add Authorized User',
+      'fieldUsername': 'Username',
+      'fieldEmail': 'Email Address',
+      'fieldFullName': 'Full Name',
+      'fieldRole': 'Role',
+      'fieldPassword': 'Initial Password (min 8 chars)',
+      'roleAdmin': 'Administrator',
+      'roleStaff': 'Warehouse / POS Staff',
+      'btnActivate': 'Activate',
+      'btnDeactivate': 'Deactivate',
+      // Delete, Archive & Reversals
+      'btnDelete': 'Delete',
+      'btnArchive': 'Archive',
+      'btnRestore': 'Restore',
+      'btnReverse': 'Reverse',
+      'showArchivedMaterials': 'Show Archived Materials',
+      'badgeArchived': 'ARCHIVED',
+      'badgeReversed': 'REVERSED',
+      'reversedByLabel': 'Reversed by',
+      'reversalReasonLabel': 'Reversal Reason',
+      'reversalReasonHint':
+          'Enter mandatory reason for reversing this ledger record...',
+      'confirmDeleteTitle': 'Confirm Permanent Deletion',
+      'confirmArchiveTitle': 'Confirm Material Archive',
+      'confirmReverseTitle': 'Confirm Ledger Reversal',
+      'targetRecordLabel': 'Target Record',
+      'fieldCategoryCode': 'Category Code (e.g., electrical)',
+      'fieldCategoryName': 'Category Display Name',
+      'btnAddCategory': 'Create Category',
     },
     AppLanguage.am: {
       'appTitle': 'ሰናይ የኮንስትራክሽን እና ፊኒሺንግ ERP',
@@ -170,7 +212,8 @@ class ErpLocalizations {
       'stockInFormulaPreview': 'አዲስ አማካይ የግዢ ዋጋ ስሌት (BR-006)',
       'btnRecordStockIn': 'ገቢ ዕቃውን መዝግብ',
       'auditTitle': 'የመጋዘን አካላዊ ቆጠራ ማመሳከሪያ',
-      'auditSubtitle': 'በመጋዘን ውስጥ በአካል የተቆጠረውን ትክክለኛ ብዛት ያስገቡ። ልዩነቱ በታሪክ ይመዘገባል።',
+      'auditSubtitle':
+          'በመጋዘን ውስጥ በአካል የተቆጠረውን ትክክለኛ ብዛት ያስገቡ። ልዩነቱ በታሪክ ይመዘገባል።',
       'auditExpected': 'በሲስተም ያለ',
       'auditPhysical': 'በአካል የተቆጠረ',
       'auditVariance': 'ልዩነት',
@@ -184,7 +227,7 @@ class ErpLocalizations {
       'cat_cement': 'ሲሚንቶ እና ማጣበቂያ',
       'cat_tiles': 'ሴራሚክ እና ፖርσεሊን',
       'cat_paint': 'ቀለም እና ቅባቶች',
-      'cat_hardware': 'የቧንቧ እና ฮาร์ድዌር ዕቃዎች',
+      'cat_hardware': 'የቧንቧ እና ሃርድዌር ዕቃዎች',
       'cat_other': 'ሌሎች የፊኒሺንግ ዕቃዎች',
       'unit_pcs': 'ፍሬ (pcs)',
       'unit_bars': 'ዘንግ (bars)',
@@ -201,6 +244,45 @@ class ErpLocalizations {
       'lblPrice': 'መሸጫ ዋጋ',
       'lblStock': 'በእጅ ያለ',
       'lblMin': 'ዝቅተኛ ገደብ',
+      // Auth & User Management
+      'loginTitle': 'የተፈቀደላቸው ሠራተኞች መግቢያ',
+      'loginSubtitle': 'ቅድሚያ የተመዘገበ መለያ ያስፈልጋል።',
+      'loginUsernameOrEmail': 'የተጠቃሚ ስም ወይም ኢሜይል',
+      'loginPassword': 'የይለፍ ቃል',
+      'btnSignIn': 'ወደ ሲስተም ግባ',
+      'btnSignOut': 'ውጣ',
+      'btnAdminPanel': 'አስተዳዳሪ',
+      'adminPanelTitle': 'የተጠቃሚዎች እና ምድቦች አስተዳደር',
+      'tabUsers': 'ተጠቃሚዎች',
+      'tabCategories': 'የዕቃ ምድቦች',
+      'btnCreateUser': 'አዲስ ተጠቃሚ ጨምር',
+      'fieldUsername': 'የተጠቃሚ ስም',
+      'fieldEmail': 'ኢሜይል',
+      'fieldFullName': 'ሙሉ ስም',
+      'fieldRole': 'ኃላፊነት',
+      'fieldPassword': 'የይለፍ ቃል (ቢያንስ 8 ፊደላት)',
+      'roleAdmin': 'አስተዳዳሪ (Admin)',
+      'roleStaff': 'የመጋዘን / ሽያጭ ሠራተኛ',
+      'btnActivate': 'አንቃ',
+      'btnDeactivate': 'አግድ',
+      // Delete, Archive & Reversals
+      'btnDelete': 'ሰርዝ',
+      'btnArchive': 'ማህደር (Archive)',
+      'btnRestore': 'መልስ',
+      'btnReverse': 'ቀልብስ (Reverse)',
+      'showArchivedMaterials': 'በማህደር የተቀመጡ ዕቃዎችን አሳይ',
+      'badgeArchived': 'ማህደር',
+      'badgeReversed': 'ተቀልብሷል',
+      'reversedByLabel': 'የቀለበሰው',
+      'reversalReasonLabel': 'የተቀለበሰበት ምክንያት',
+      'reversalReasonHint': 'ይህ እንቅስቃሴ የሚቀለበስበትን ምክንያት ያስገቡ...',
+      'confirmDeleteTitle': 'ቋሚ ስረዛ ማረጋገጫ',
+      'confirmArchiveTitle': 'ወደ ማህደር መውሰጃ ማረጋገጫ',
+      'confirmReverseTitle': 'እንቅስቃሴ መቀልበሻ ማረጋገጫ',
+      'targetRecordLabel': 'የተመረጠው መዝገብ',
+      'fieldCategoryCode': 'የምድብ ኮድ (ለምሳሌ electrical)',
+      'fieldCategoryName': 'የምድብ ስም',
+      'btnAddCategory': 'ምድብ ፍጠር',
     },
     AppLanguage.om: {
       'appTitle': 'Senay ERP Meeshaalee Ijaarsaa fi Xumuraa',
@@ -295,6 +377,45 @@ class ErpLocalizations {
       'lblPrice': 'Gatii Gurgurtaa',
       'lblStock': 'Kuusaa Jiru',
       'lblMin': 'Daangaa Xiqqaa',
+      // Auth & User Management
+      'loginTitle': 'Seensa Hojjettoota Hayyamamaniif',
+      'loginSubtitle': 'Eenymmaa duraan galmaa’e qofaatu hayyamama.',
+      'loginUsernameOrEmail': 'Maqaa Fayyadamaa ykn Imeelii',
+      'loginPassword': 'Jecha Iciitii (Password)',
+      'btnSignIn': 'Seeni',
+      'btnSignOut': 'Ba’i',
+      'btnAdminPanel': 'Bulchiinsa',
+      'adminPanelTitle': 'Bulchiinsa Fayyadamtootaa fi Ramaddii',
+      'tabUsers': 'Fayyadamtoota',
+      'tabCategories': 'Ramaddii Meeshaalee',
+      'btnCreateUser': 'Fayyadamaa Haaraa Dabali',
+      'fieldUsername': 'Maqaa Fayyadamaa',
+      'fieldEmail': 'Imeelii',
+      'fieldFullName': 'Maqaa Guutuu',
+      'fieldRole': 'Gahee Hojii',
+      'fieldPassword': 'Jecha Iciitii (yoo xiqqaate qubee 8)',
+      'roleAdmin': 'Bulchaa (Admin)',
+      'roleStaff': 'Hojjetaa Kuusaa / POS',
+      'btnActivate': 'Kaasi',
+      'btnDeactivate': 'Dhaabi',
+      // Delete, Archive & Reversals
+      'btnDelete': 'Haqi',
+      'btnArchive': 'Kuusaa Seenaa (Archive)',
+      'btnRestore': 'Deebisi',
+      'btnReverse': 'Deebisi (Reverse)',
+      'showArchivedMaterials': 'Meeshaalee Archive Ta’an Agarsiisi',
+      'badgeArchived': 'ARCHIVED',
+      'badgeReversed': 'REVERSED',
+      'reversedByLabel': 'Kan deebise',
+      'reversalReasonLabel': 'Sababa Deebi’eef',
+      'reversalReasonHint': 'Sababa galmeen kun deebi’uuf barreessi...',
+      'confirmDeleteTitle': 'Mirkaneessa Haquu',
+      'confirmArchiveTitle': 'Mirkaneessa Archive',
+      'confirmReverseTitle': 'Mirkaneessa Sochii Deebisuu',
+      'targetRecordLabel': 'Galmee Filatame',
+      'fieldCategoryCode': 'Koodii Ramaddii',
+      'fieldCategoryName': 'Maqaa Ramaddii',
+      'btnAddCategory': 'Ramaddii Uumi',
     },
   };
 
@@ -304,6 +425,15 @@ class ErpLocalizations {
         key;
   }
 
-  String categoryLabel(String categoryCode) => t('cat_$categoryCode');
+  String categoryLabel(String categoryCode, {String? customName}) {
+    final key = 'cat_$categoryCode';
+    final localized = _strings[language]?[key] ?? _strings[AppLanguage.en]?[key];
+    if (localized != null) return localized;
+    if (customName != null && customName.trim().isNotEmpty) {
+      return customName;
+    }
+    return categoryCode.toUpperCase();
+  }
+
   String unitLabel(String unitCode) => t('unit_$unitCode');
 }

@@ -3,6 +3,7 @@ import 'package:construction_material_erp/core/constants/erp_constants.dart';
 import 'package:construction_material_erp/core/errors/domain_error.dart';
 import 'package:construction_material_erp/data/repositories/erp_repository.dart';
 import 'package:construction_material_erp/domain/models/erp_models.dart';
+import 'package:construction_material_erp/domain/services/auth_engine.dart';
 import 'package:construction_material_erp/domain/services/inventory_engine.dart';
 import 'package:construction_material_erp/l10n/erp_localizations.dart';
 import 'package:construction_material_erp/presentation/providers/erp_providers.dart';
@@ -113,6 +114,339 @@ void main() {
       final updatedDerba = res.state.materials
           .firstWhere((m) => m.id == 'mat-cement-derba');
       expect(updatedDerba.currentStock, 42);
+    });
+  });
+
+  group('AuthEngine Pre-Registered Credentials & User Security Tests (FR-021 to FR-025)', () {
+    test('hashes passwords with PBKDF2-SHA256 and authenticates valid username or email', () {
+      final admin = AuthEngine.createDefaultAdminUser();
+      expect(admin.passwordHash.startsWith('pbkdf2_sha256\$'), isTrue);
+      expect(admin.passwordHash.contains('Admin@12345'), isFalse);
+
+      final byUsername = AuthEngine.authenticateUser(
+        users: [admin],
+        usernameOrEmail: 'admin',
+        password: r'Admin@12345',
+      );
+      expect(byUsername.username, 'admin');
+
+      final byEmail = AuthEngine.authenticateUser(
+        users: [admin],
+        usernameOrEmail: 'admin@senayerp.local',
+        password: r'Admin@12345',
+      );
+      expect(byEmail.id, admin.id);
+    });
+
+    test('rejects unknown username, wrong password, and deactivated user', () {
+      final admin = AuthEngine.createDefaultAdminUser();
+      final created = AuthEngine.createUserAccount(
+        users: [admin],
+        input: const CreateUserInput(
+          username: 'cashier1',
+          email: 'cashier1@senayerp.local',
+          fullName: 'Kebede Cashier',
+          role: UserRole.staff,
+          password: 'StaffPassword1',
+        ),
+      );
+
+      expect(
+        () => AuthEngine.authenticateUser(
+          users: created.users,
+          usernameOrEmail: 'unknown_user',
+          password: r'Admin@12345',
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'INVALID_CREDENTIALS',
+          ),
+        ),
+      );
+
+      expect(
+        () => AuthEngine.authenticateUser(
+          users: created.users,
+          usernameOrEmail: 'admin',
+          password: 'WrongPassword!',
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'INVALID_CREDENTIALS',
+          ),
+        ),
+      );
+
+      final deactivatedUsers = AuthEngine.toggleUserStatus(
+        users: created.users,
+        targetUserId: created.created.id,
+        isActive: false,
+        actorUserId: admin.id,
+      );
+
+      expect(
+        () => AuthEngine.authenticateUser(
+          users: deactivatedUsers,
+          usernameOrEmail: 'cashier1',
+          password: 'StaffPassword1',
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'ACCOUNT_DEACTIVATED',
+          ),
+        ),
+      );
+    });
+
+    test('BR-010: prevents deactivating or deleting the last active administrator or self', () {
+      final admin = AuthEngine.createDefaultAdminUser();
+      expect(
+        () => AuthEngine.toggleUserStatus(
+          users: [admin],
+          targetUserId: admin.id,
+          isActive: false,
+          actorUserId: 'USR-OTHER',
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'LAST_ADMIN_PROTECTION',
+          ),
+        ),
+      );
+
+      expect(
+        () => AuthEngine.deleteUserAccount(
+          users: [admin],
+          targetUserId: admin.id,
+          actorUserId: admin.id,
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'SELF_MODIFICATION_FORBIDDEN',
+          ),
+        ),
+      );
+    });
+  });
+
+  group('Safe Delete, Archive, Category & Reversal Domain Tests (FR-026 to FR-030)', () {
+    test('BR-011: deletes unused material permanently, but blocks deleting used material', () {
+      final seed = InventoryEngine.createSeedState();
+      // mat-cement-derba has no sales, stock-ins, or audits in seed state
+      final deleted = InventoryEngine.deleteMaterial(seed, 'mat-cement-derba');
+      expect(deleted.deletedMaterial.id, 'mat-cement-derba');
+      expect(
+        deleted.state.materials.any((m) => m.id == 'mat-cement-derba'),
+        isFalse,
+      );
+
+      // mat-cement-dangote is used in sale-seed-001 and stin-seed-001
+      expect(
+        () => InventoryEngine.deleteMaterial(seed, 'mat-cement-dangote'),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'MATERIAL_IN_USE',
+          ),
+        ),
+      );
+    });
+
+    test('FR-027: archives and restores used material and blocks selling archived material', () {
+      final seed = InventoryEngine.createSeedState();
+      final archivedRes = InventoryEngine.setMaterialArchivedStatus(
+        seed,
+        'mat-cement-dangote',
+        isArchived: true,
+        actorUsername: 'admin',
+      );
+      expect(archivedRes.material.isArchived, isTrue);
+      expect(
+        archivedRes.state.summary.totalMaterials,
+        seed.summary.totalMaterials - 1,
+      );
+
+      expect(
+        () => InventoryEngine.recordSale(
+          archivedRes.state,
+          const RecordSaleInput(
+            items: [
+              SaleCartLineInput(
+                materialId: 'mat-cement-dangote',
+                quantity: 5,
+                unitSellingPrice: 1350,
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'MATERIAL_ARCHIVED',
+          ),
+        ),
+      );
+
+      final restoredRes = InventoryEngine.setMaterialArchivedStatus(
+        archivedRes.state,
+        'mat-cement-dangote',
+        isArchived: false,
+        actorUsername: 'admin',
+      );
+      expect(restoredRes.material.isArchived, isFalse);
+      expect(
+        restoredRes.state.summary.totalMaterials,
+        seed.summary.totalMaterials,
+      );
+    });
+
+    test('FR-028 & BR-012: creates custom category, deletes unused category, and blocks deleting category in use', () {
+      final seed = InventoryEngine.createSeedState();
+      final createdCat = InventoryEngine.createCategory(
+        seed,
+        const CreateCategoryInput(
+          code: 'sanitary',
+          name: 'Sanitary Ware & Fittings',
+        ),
+        actorUsername: 'admin',
+      );
+      expect(
+        createdCat.state.categories.any((c) => c.code == 'sanitary'),
+        isTrue,
+      );
+
+      // Register material in sanitary category
+      final withMat = InventoryEngine.registerMaterial(
+        createdCat.state,
+        const RegisterMaterialInput(
+          name: 'Ceramic Wash Basin',
+          category: MaterialCategory.other,
+          categoryCode: 'sanitary',
+          unit: MaterialUnit.pcs,
+          currentStock: 10,
+          minStockLevel: 2,
+          unitCost: 2200,
+          defaultSellingPrice: 2800,
+        ),
+      );
+
+      // Cannot delete category while material uses it
+      expect(
+        () => InventoryEngine.deleteCategory(withMat.state, 'sanitary'),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'CATEGORY_IN_USE',
+          ),
+        ),
+      );
+
+      // Delete the unused material first, then delete the custom category
+      final afterMatDelete =
+          InventoryEngine.deleteMaterial(withMat.state, withMat.material.id);
+      final afterCatDelete =
+          InventoryEngine.deleteCategory(afterMatDelete.state, 'sanitary');
+      expect(
+        afterCatDelete.state.categories.any((c) => c.code == 'sanitary'),
+        isFalse,
+      );
+    });
+
+    test('FR-029 & BR-013: reverses a sale transaction, restores stock, and blocks duplicate reversal', () {
+      final seed = InventoryEngine.createSeedState();
+      // sale-seed-001 sold 20 bags of mat-cement-dangote (currentStock 240) and 15 bars of mat-rebar-12mm (currentStock 180)
+      final reversed = InventoryEngine.reverseSaleTransaction(
+        seed,
+        'sale-seed-001',
+        reason: 'Customer returned unopened bags to warehouse',
+        actorUsername: 'admin',
+      );
+
+      expect(reversed.sale.isReversed, isTrue);
+      expect(reversed.sale.reversedBy, 'admin');
+      final dangote = reversed.state.materials
+          .firstWhere((m) => m.id == 'mat-cement-dangote');
+      final rebar12 = reversed.state.materials
+          .firstWhere((m) => m.id == 'mat-rebar-12mm');
+      expect(dangote.currentStock, 260);
+      expect(rebar12.currentStock, 195);
+      expect(reversed.state.summary.cumulativeSalesRevenue, 0);
+
+      // Duplicate reversal blocked
+      expect(
+        () => InventoryEngine.reverseSaleTransaction(
+          reversed.state,
+          'sale-seed-001',
+          reason: 'Second attempt',
+          actorUsername: 'admin',
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'ALREADY_REVERSED',
+          ),
+        ),
+      );
+    });
+
+    test('FR-030 & BR-014: reverses Stock-In and Stock Audit records while guarding against negative stock', () {
+      final seed = InventoryEngine.createSeedState();
+      final stockInRes = InventoryEngine.recordStockIn(
+        seed,
+        const RecordStockInInput(
+          materialId: 'mat-rebar-16mm', // 32 @ 1980
+          quantityAdded: 68, // -> 100 @ 2061.60
+          unitPurchaseCost: 2100,
+        ),
+      );
+
+      final reversedStin = InventoryEngine.reverseStockInRecord(
+        stockInRes.state,
+        stockInRes.stockIn.id,
+        reason: 'Wrong delivery waybill entered',
+        actorUsername: 'admin',
+      );
+      final rebar16 = reversedStin.state.materials
+          .firstWhere((m) => m.id == 'mat-rebar-16mm');
+      expect(rebar16.currentStock, 32);
+      expect(rebar16.unitCost, 1980);
+
+      // Stock audit reversal
+      final auditRes = InventoryEngine.recordStockAudit(
+        seed,
+        const RecordStockAuditInput(
+          adjustments: [
+            AuditAdjustmentInput(
+              materialId: 'mat-cement-derba', // 45 -> 40 (-5 variance)
+              physicalCount: 40,
+            ),
+          ],
+          auditNote: 'Floor count',
+        ),
+      );
+      final reversedAudit = InventoryEngine.reverseStockAuditRecord(
+        auditRes.state,
+        auditRes.audit.id,
+        reason: 'Miscounted pallets in section B',
+        actorUsername: 'admin',
+      );
+      final derba = reversedAudit.state.materials
+          .firstWhere((m) => m.id == 'mat-cement-derba');
+      expect(derba.currentStock, 45);
     });
   });
 

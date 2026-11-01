@@ -41,6 +41,22 @@ enum MaterialUnit {
   }
 }
 
+enum UserRole {
+  admin('admin'),
+  staff('staff');
+
+  final String code;
+  const UserRole(this.code);
+
+  static UserRole fromCode(String raw) {
+    return UserRole.values.firstWhere(
+      (r) => r.code == raw.toLowerCase(),
+      orElse: () => UserRole.staff,
+    );
+  }
+}
+
+
 /// Warm Industrial Ledger Design System palette (`docs/UI_UX_SPEC.md` Section 2)
 class ErpColors {
   static const Color bgPrimary = Color(0xFFF6F4F0);

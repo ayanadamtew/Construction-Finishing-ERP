@@ -2,13 +2,14 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../core/constants/erp_constants.dart';
 import '../../domain/models/erp_models.dart';
+import '../../domain/services/auth_engine.dart';
 import '../../domain/services/inventory_engine.dart';
 
 /// Native Android SQLite persistence helper (`Sqflite`) implementing the exact
-/// schema and indexes defined in `docs/DATABASE_DESIGN.md` Section 4.
+/// schema and indexes defined in `docs/DATABASE_DESIGN.md` Section 4 (v2 with Auth, Categories, Archive & Reversals).
 class SqliteDatabaseHelper {
   static const String _dbName = 'senay_construction_erp.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   Database? _database;
 
@@ -32,16 +33,56 @@ class SqliteDatabaseHelper {
         await _createSchema(db);
         final seed = InventoryEngine.createSeedState();
         await _persistFullStateInTransaction(db, seed);
+        await _ensureDefaultAdminSeeded(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _migrateV1ToV2(db);
+        }
       },
     );
   }
 
   Future<void> _createSchema(Database db) async {
     await db.execute('''
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY NOT NULL,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        full_name TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('admin', 'staff')),
+        password_hash TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        last_login_at TEXT
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY NOT NULL,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        is_system INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        created_by TEXT
+      );
+    ''');
+
+    await db.execute('''
       CREATE TABLE IF NOT EXISTS materials (
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
-        category TEXT NOT NULL CHECK (category IN ('rebar', 'cement', 'tiles', 'paint', 'hardware', 'other')),
+        category TEXT NOT NULL,
         specs TEXT NOT NULL DEFAULT '' CHECK (length(specs) <= 120),
         unit TEXT NOT NULL CHECK (unit IN ('pcs', 'bars', 'bags', 'boxes', 'buckets', 'kg', 'm', 'liters')),
         current_stock REAL NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
@@ -49,7 +90,10 @@ class SqliteDatabaseHelper {
         unit_cost REAL NOT NULL DEFAULT 0 CHECK (unit_cost >= 0),
         default_selling_price REAL NOT NULL DEFAULT 0 CHECK (default_selling_price >= 0),
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        archived_at TEXT,
+        archived_by TEXT
       );
     ''');
 
@@ -70,7 +114,11 @@ class SqliteDatabaseHelper {
         total_cost REAL NOT NULL CHECK (total_cost >= 0),
         total_profit REAL NOT NULL,
         customer_note TEXT NOT NULL DEFAULT '' CHECK (length(customer_note) <= 200),
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        is_reversed INTEGER NOT NULL DEFAULT 0,
+        reversed_at TEXT,
+        reversed_by TEXT,
+        reversal_reason TEXT
       );
     ''');
 
@@ -117,6 +165,10 @@ class SqliteDatabaseHelper {
         new_unit_cost REAL NOT NULL CHECK (new_unit_cost >= 0),
         supplier_note TEXT NOT NULL DEFAULT '' CHECK (length(supplier_note) <= 200),
         created_at TEXT NOT NULL,
+        is_reversed INTEGER NOT NULL DEFAULT 0,
+        reversed_at TEXT,
+        reversed_by TEXT,
+        reversal_reason TEXT,
         FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE RESTRICT
       );
     ''');
@@ -132,7 +184,11 @@ class SqliteDatabaseHelper {
       CREATE TABLE IF NOT EXISTS stock_audit_records (
         id TEXT PRIMARY KEY NOT NULL,
         audit_note TEXT NOT NULL DEFAULT '' CHECK (length(audit_note) <= 200),
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        is_reversed INTEGER NOT NULL DEFAULT 0,
+        reversed_at TEXT,
+        reversed_by TEXT,
+        reversal_reason TEXT
       );
     ''');
 
@@ -164,8 +220,210 @@ class SqliteDatabaseHelper {
     );
   }
 
+  Future<void> _migrateV1ToV2(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY NOT NULL,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        full_name TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('admin', 'staff')),
+        password_hash TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        last_login_at TEXT
+      );
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY NOT NULL,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        is_system INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        created_by TEXT
+      );
+    ''');
+
+    final List<String> alterStatements = <String>[
+      'ALTER TABLE materials ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;',
+      'ALTER TABLE materials ADD COLUMN archived_at TEXT;',
+      'ALTER TABLE materials ADD COLUMN archived_by TEXT;',
+      'ALTER TABLE sale_transactions ADD COLUMN is_reversed INTEGER NOT NULL DEFAULT 0;',
+      'ALTER TABLE sale_transactions ADD COLUMN reversed_at TEXT;',
+      'ALTER TABLE sale_transactions ADD COLUMN reversed_by TEXT;',
+      'ALTER TABLE sale_transactions ADD COLUMN reversal_reason TEXT;',
+      'ALTER TABLE stock_in_records ADD COLUMN is_reversed INTEGER NOT NULL DEFAULT 0;',
+      'ALTER TABLE stock_in_records ADD COLUMN reversed_at TEXT;',
+      'ALTER TABLE stock_in_records ADD COLUMN reversed_by TEXT;',
+      'ALTER TABLE stock_in_records ADD COLUMN reversal_reason TEXT;',
+      'ALTER TABLE stock_audit_records ADD COLUMN is_reversed INTEGER NOT NULL DEFAULT 0;',
+      'ALTER TABLE stock_audit_records ADD COLUMN reversed_at TEXT;',
+      'ALTER TABLE stock_audit_records ADD COLUMN reversed_by TEXT;',
+      'ALTER TABLE stock_audit_records ADD COLUMN reversal_reason TEXT;',
+    ];
+
+    for (final stmt in alterStatements) {
+      try {
+        await db.execute(stmt);
+      } catch (_) {
+        // Ignore if column already exists
+      }
+    }
+
+    await _ensureDefaultAdminSeeded(db);
+    final existingCats = await db.query('categories');
+    if (existingCats.isEmpty) {
+      for (final cat in InventoryEngine.createDefaultCategories()) {
+        await db.insert(
+          'categories',
+          {
+            'id': cat.id,
+            'code': cat.code,
+            'name': cat.name,
+            'is_system': cat.isSystem ? 1 : 0,
+            'created_at': cat.createdAt,
+            'created_by': cat.createdBy,
+          },
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
+  }
+
+  Future<void> _ensureDefaultAdminSeeded(Database db) async {
+    final userRows = await db.query('users');
+    if (userRows.isEmpty) {
+      final defaultAdmin = AuthEngine.createDefaultAdminUser();
+      await db.insert(
+        'users',
+        {
+          'id': defaultAdmin.id,
+          'username': defaultAdmin.username,
+          'email': defaultAdmin.email,
+          'full_name': defaultAdmin.fullName,
+          'role': defaultAdmin.role.code,
+          'password_hash': defaultAdmin.passwordHash,
+          'is_active': defaultAdmin.isActive ? 1 : 0,
+          'created_at': defaultAdmin.createdAt,
+          'last_login_at': defaultAdmin.lastLoginAt,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+  }
+
+  Future<List<UserAccount>> loadUsers() async {
+    final db = await database;
+    await _ensureDefaultAdminSeeded(db);
+    final rows = await db.query('users', orderBy: 'created_at ASC');
+    return rows
+        .map(
+          (row) => UserAccount(
+            id: row['id'] as String,
+            username: row['username'] as String,
+            email: row['email'] as String,
+            fullName: row['full_name'] as String,
+            role: UserRole.fromCode(row['role'] as String),
+            passwordHash: row['password_hash'] as String,
+            isActive: ((row['is_active'] as num?) ?? 1) != 0,
+            createdAt: row['created_at'] as String,
+            lastLoginAt: row['last_login_at'] as String?,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> saveUsers(List<UserAccount> users) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('users');
+      for (final u in users) {
+        await txn.insert('users', {
+          'id': u.id,
+          'username': u.username,
+          'email': u.email,
+          'full_name': u.fullName,
+          'role': u.role.code,
+          'password_hash': u.passwordHash,
+          'is_active': u.isActive ? 1 : 0,
+          'created_at': u.createdAt,
+          'last_login_at': u.lastLoginAt,
+        });
+      }
+    });
+  }
+
+  Future<UserAccount?> loadActiveSessionUser(List<UserAccount> users) async {
+    final db = await database;
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    final rows = await db.query('sessions', orderBy: 'created_at DESC', limit: 1);
+    if (rows.isEmpty) return null;
+
+    final session = rows.first;
+    final expiresAt = (session['expires_at'] as String?) ?? '';
+    if (expiresAt.compareTo(nowIso) <= 0) {
+      await db.delete('sessions');
+      return null;
+    }
+
+    final userId = session['user_id'] as String;
+    for (final u in users) {
+      if (u.id == userId && u.isActive) {
+        return u;
+      }
+    }
+    return null;
+  }
+
+  Future<String> createSession(String userId) async {
+    final db = await database;
+    final now = DateTime.now().toUtc();
+    final expires = now.add(const Duration(hours: 12));
+    final token = AuthEngine.generateRandomHex(24);
+    await db.transaction((txn) async {
+      await txn.delete('sessions');
+      await txn.insert('sessions', {
+        'id': token,
+        'user_id': userId,
+        'created_at': now.toIso8601String(),
+        'expires_at': expires.toIso8601String(),
+      });
+    });
+    return token;
+  }
+
+  Future<void> clearSessions() async {
+    final db = await database;
+    await db.delete('sessions');
+  }
+
   Future<ErpState> loadState() async {
     final db = await database;
+
+    final catRows = await db.query('categories', orderBy: 'created_at ASC');
+    final categories = catRows.isNotEmpty
+        ? catRows
+            .map(
+              (row) => CategoryRecord(
+                id: row['id'] as String,
+                code: row['code'] as String,
+                name: row['name'] as String,
+                isSystem: ((row['is_system'] as num?) ?? 0) != 0,
+                createdAt: row['created_at'] as String,
+                createdBy: row['created_by'] as String?,
+              ),
+            )
+            .toList()
+        : InventoryEngine.createDefaultCategories();
 
     final matRows = await db.query('materials', orderBy: 'created_at DESC');
     final materials = matRows
@@ -174,6 +432,7 @@ class SqliteDatabaseHelper {
             id: row['id'] as String,
             name: row['name'] as String,
             category: MaterialCategory.fromCode(row['category'] as String),
+            categoryCode: row['category'] as String,
             specs: (row['specs'] as String?) ?? '',
             unit: MaterialUnit.fromCode(row['unit'] as String),
             currentStock: (row['current_stock'] as num).toDouble(),
@@ -183,6 +442,9 @@ class SqliteDatabaseHelper {
                 (row['default_selling_price'] as num).toDouble(),
             createdAt: row['created_at'] as String,
             updatedAt: row['updated_at'] as String,
+            isArchived: ((row['is_archived'] as num?) ?? 0) != 0,
+            archivedAt: row['archived_at'] as String?,
+            archivedBy: row['archived_by'] as String?,
           ),
         )
         .toList();
@@ -219,6 +481,10 @@ class SqliteDatabaseHelper {
             totalProfit: (row['total_profit'] as num).toDouble(),
             customerNote: (row['customer_note'] as String?) ?? '',
             createdAt: row['created_at'] as String,
+            isReversed: ((row['is_reversed'] as num?) ?? 0) != 0,
+            reversedAt: row['reversed_at'] as String?,
+            reversedBy: row['reversed_by'] as String?,
+            reversalReason: row['reversal_reason'] as String?,
           ),
         )
         .toList();
@@ -241,6 +507,10 @@ class SqliteDatabaseHelper {
             newUnitCost: (row['new_unit_cost'] as num).toDouble(),
             supplierNote: (row['supplier_note'] as String?) ?? '',
             createdAt: row['created_at'] as String,
+            isReversed: ((row['is_reversed'] as num?) ?? 0) != 0,
+            reversedAt: row['reversed_at'] as String?,
+            reversedBy: row['reversed_by'] as String?,
+            reversalReason: row['reversal_reason'] as String?,
           ),
         )
         .toList();
@@ -272,6 +542,10 @@ class SqliteDatabaseHelper {
             adjustments: linesByAuditId[row['id'] as String] ?? const [],
             auditNote: (row['audit_note'] as String?) ?? '',
             createdAt: row['created_at'] as String,
+            isReversed: ((row['is_reversed'] as num?) ?? 0) != 0,
+            reversedAt: row['reversed_at'] as String?,
+            reversedBy: row['reversed_by'] as String?,
+            reversalReason: row['reversal_reason'] as String?,
           ),
         )
         .toList();
@@ -281,6 +555,7 @@ class SqliteDatabaseHelper {
       sales: sales,
       stockIns: stockIns,
       audits: audits,
+      categories: categories,
       summary: InventoryEngine.calculateSummary(
         materials: materials,
         sales: sales,
@@ -304,12 +579,27 @@ class SqliteDatabaseHelper {
       await txn.delete('audit_line_items');
       await txn.delete('stock_audit_records');
       await txn.delete('materials');
+      await txn.delete('categories');
+
+      final categories = state.categories.isNotEmpty
+          ? state.categories
+          : InventoryEngine.createDefaultCategories();
+      for (final c in categories) {
+        await txn.insert('categories', {
+          'id': c.id,
+          'code': c.code,
+          'name': c.name,
+          'is_system': c.isSystem ? 1 : 0,
+          'created_at': c.createdAt,
+          'created_by': c.createdBy,
+        });
+      }
 
       for (final m in state.materials) {
         await txn.insert('materials', {
           'id': m.id,
           'name': m.name,
-          'category': m.category.code,
+          'category': m.effectiveCategoryCode,
           'specs': m.specs,
           'unit': m.unit.code,
           'current_stock': m.currentStock,
@@ -318,6 +608,9 @@ class SqliteDatabaseHelper {
           'default_selling_price': m.defaultSellingPrice,
           'created_at': m.createdAt,
           'updated_at': m.updatedAt,
+          'is_archived': m.isArchived ? 1 : 0,
+          'archived_at': m.archivedAt,
+          'archived_by': m.archivedBy,
         });
       }
 
@@ -329,6 +622,10 @@ class SqliteDatabaseHelper {
           'total_profit': sale.totalProfit,
           'customer_note': sale.customerNote,
           'created_at': sale.createdAt,
+          'is_reversed': sale.isReversed ? 1 : 0,
+          'reversed_at': sale.reversedAt,
+          'reversed_by': sale.reversedBy,
+          'reversal_reason': sale.reversalReason,
         });
         for (final line in sale.items) {
           await txn.insert('sale_line_items', {
@@ -361,6 +658,10 @@ class SqliteDatabaseHelper {
           'new_unit_cost': stin.newUnitCost,
           'supplier_note': stin.supplierNote,
           'created_at': stin.createdAt,
+          'is_reversed': stin.isReversed ? 1 : 0,
+          'reversed_at': stin.reversedAt,
+          'reversed_by': stin.reversedBy,
+          'reversal_reason': stin.reversalReason,
         });
       }
 
@@ -369,6 +670,10 @@ class SqliteDatabaseHelper {
           'id': aud.id,
           'audit_note': aud.auditNote,
           'created_at': aud.createdAt,
+          'is_reversed': aud.isReversed ? 1 : 0,
+          'reversed_at': aud.reversedAt,
+          'reversed_by': aud.reversedBy,
+          'reversal_reason': aud.reversalReason,
         });
         for (int i = 0; i < aud.adjustments.length; i++) {
           final adj = aud.adjustments[i];

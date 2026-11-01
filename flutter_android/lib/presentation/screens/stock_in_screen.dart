@@ -31,7 +31,9 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
     final viewState = ref.watch(erpControllerProvider);
     final controller = ref.read(erpControllerProvider.notifier);
     final i18n = viewState.i18n;
-    final materials = viewState.erpState.materials;
+    final materials = viewState.erpState.materials
+        .where((m) => !m.isArchived)
+        .toList();
 
     final selectedMat = materials
         .where((m) => m.id == (_selectedMaterialId ?? materials.firstOrNull?.id))

@@ -14,10 +14,13 @@ class DashboardScreen extends ConsumerWidget {
     final i18n = viewState.i18n;
     final summary = viewState.erpState.summary;
     final lowStockMaterials = viewState.erpState.materials
-        .where((m) => m.currentStock <= m.minStockLevel)
+        .where((m) => !m.isArchived && m.currentStock <= m.minStockLevel)
         .toList();
 
-    final recentSales = viewState.erpState.sales.take(5).toList();
+    final recentSales = viewState.erpState.sales
+        .where((s) => !s.isReversed)
+        .take(5)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),

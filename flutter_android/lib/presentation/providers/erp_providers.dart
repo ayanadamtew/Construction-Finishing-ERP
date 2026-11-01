@@ -1,13 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/erp_repository.dart';
 import '../../domain/models/erp_models.dart';
+import '../../domain/services/auth_engine.dart';
 import '../../domain/services/inventory_engine.dart';
 import '../../l10n/erp_localizations.dart';
 
-/// Holds app state, active language (`en`, `am`, `om`), and draft form states
-/// (`draftCart`, `draftAuditCounts`) so switching languages never loses user work (`FAIL-003`).
+/// Holds app state, authenticated user, user list, active language (`en`, `am`, `om`),
+/// and draft form states (`draftCart`, `draftAuditCounts`) so switching languages never loses user work (`FAIL-003`).
 class ErpAppViewState {
   final ErpState erpState;
+  final PublicUser? currentUser;
+  final List<UserAccount> users;
   final AppLanguage language;
   final int activeTabIndex;
   final List<SaleCartLineInput> draftCart;
@@ -21,6 +24,8 @@ class ErpAppViewState {
 
   const ErpAppViewState({
     required this.erpState,
+    this.currentUser,
+    this.users = const [],
     this.language = AppLanguage.en,
     this.activeTabIndex = 0,
     this.draftCart = const [],
@@ -35,8 +40,14 @@ class ErpAppViewState {
 
   ErpLocalizations get i18n => ErpLocalizations(language);
 
+  List<PublicUser> get publicUsers =>
+      users.map(AuthEngine.toPublicUser).toList();
+
   ErpAppViewState copyWith({
     ErpState? erpState,
+    PublicUser? currentUser,
+    bool clearCurrentUser = false,
+    List<UserAccount>? users,
     AppLanguage? language,
     int? activeTabIndex,
     List<SaleCartLineInput>? draftCart,
@@ -51,6 +62,9 @@ class ErpAppViewState {
   }) {
     return ErpAppViewState(
       erpState: erpState ?? this.erpState,
+      currentUser:
+          clearCurrentUser ? null : (currentUser ?? this.currentUser),
+      users: users ?? this.users,
       language: language ?? this.language,
       activeTabIndex: activeTabIndex ?? this.activeTabIndex,
       draftCart: draftCart ?? this.draftCart,
@@ -69,13 +83,22 @@ class ErpController extends StateNotifier<ErpAppViewState> {
   final ErpRepository _repository;
 
   ErpController(this._repository)
-      : super(ErpAppViewState(erpState: InventoryEngine.createSeedState())) {
+      : super(
+          ErpAppViewState(
+            erpState: InventoryEngine.createSeedState(),
+            users: <UserAccount>[AuthEngine.createDefaultAdminUser()],
+          ),
+        ) {
     _loadInitialDatabaseState();
   }
 
   Future<void> _loadInitialDatabaseState() async {
     final loaded = await _repository.initialize();
-    state = state.copyWith(erpState: loaded);
+    state = state.copyWith(
+      erpState: loaded.erpState,
+      users: loaded.users,
+      currentUser: loaded.activeUser,
+    );
   }
 
   void setLanguage(AppLanguage lang) {
@@ -88,6 +111,112 @@ class ErpController extends StateNotifier<ErpAppViewState> {
 
   void clearBanner() {
     state = state.copyWith(clearBanner: true);
+  }
+
+  Future<bool> login(String usernameOrEmail, String password) async {
+    try {
+      final res = await _repository.login(
+        currentUsers: state.users,
+        usernameOrEmail: usernameOrEmail,
+        password: password,
+      );
+      state = state.copyWith(
+        currentUser: res.user,
+        users: res.users,
+        clearBanner: true,
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<void> logout() async {
+    await _repository.logout();
+    state = state.copyWith(
+      clearCurrentUser: true,
+      activeTabIndex: 0,
+      clearBanner: true,
+    );
+  }
+
+  Future<bool> createUser(CreateUserInput input) async {
+    final actor = state.currentUser;
+    if (actor == null) return false;
+    try {
+      final res = await _repository.createUser(
+        currentUsers: state.users,
+        actor: actor,
+        input: input,
+      );
+      state = state.copyWith(
+        users: res.users,
+        bannerMessage: 'User "${res.created.username}" created.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> toggleUserStatus(String targetUserId, bool isActive) async {
+    final actor = state.currentUser;
+    if (actor == null) return false;
+    try {
+      final updated = await _repository.toggleUserStatus(
+        currentUsers: state.users,
+        actor: actor,
+        targetUserId: targetUserId,
+        isActive: isActive,
+      );
+      state = state.copyWith(
+        users: updated,
+        bannerMessage:
+            isActive ? 'User account activated.' : 'User account deactivated.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteUser(String targetUserId) async {
+    final actor = state.currentUser;
+    if (actor == null) return false;
+    try {
+      final updated = await _repository.deleteUser(
+        currentUsers: state.users,
+        actor: actor,
+        targetUserId: targetUserId,
+      );
+      state = state.copyWith(
+        users: updated,
+        bannerMessage: 'User account permanently deleted.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
   }
 
   void addOrUpdateCartItem(SaleCartLineInput line) {
@@ -173,6 +302,103 @@ class ErpController extends StateNotifier<ErpAppViewState> {
     }
   }
 
+  Future<bool> deleteMaterial(String materialId) async {
+    try {
+      final result =
+          await _repository.deleteMaterial(state.erpState, materialId);
+      state = state.copyWith(
+        erpState: result.state,
+        draftCart:
+            state.draftCart.where((c) => c.materialId != materialId).toList(),
+        bannerMessage:
+            'Unused material "${result.deletedMaterial.name}" permanently deleted.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> setMaterialArchivedStatus(
+    String materialId,
+    bool isArchived,
+  ) async {
+    try {
+      final actor = state.currentUser?.username ?? 'admin';
+      final result = await _repository.setMaterialArchivedStatus(
+        state.erpState,
+        materialId,
+        isArchived: isArchived,
+        actorUsername: actor,
+      );
+      state = state.copyWith(
+        erpState: result.state,
+        draftCart: isArchived
+            ? state.draftCart.where((c) => c.materialId != materialId).toList()
+            : state.draftCart,
+        bannerMessage: isArchived
+            ? 'Material "${result.material.name}" archived.'
+            : 'Material "${result.material.name}" restored to active catalog.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> createCategory(CreateCategoryInput input) async {
+    try {
+      final actor = state.currentUser?.username ?? 'admin';
+      final result = await _repository.createCategory(
+        state.erpState,
+        input,
+        actorUsername: actor,
+      );
+      state = state.copyWith(
+        erpState: result.state,
+        bannerMessage: 'Category "${result.category.name}" created.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteCategory(String categoryIdOrCode) async {
+    try {
+      final result =
+          await _repository.deleteCategory(state.erpState, categoryIdOrCode);
+      state = state.copyWith(
+        erpState: result.state,
+        bannerMessage:
+            'Category "${result.deletedCategory.name}" deleted.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
   Future<bool> completeDraftSale() async {
     try {
       final result = await _repository.recordSale(
@@ -188,6 +414,31 @@ class ErpController extends StateNotifier<ErpAppViewState> {
         draftCustomerNote: '',
         bannerMessage:
             'Sale ${result.sale.id} completed and deducted from stock.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> reverseSale(String saleId, String reason) async {
+    try {
+      final actor = state.currentUser?.username ?? 'admin';
+      final result = await _repository.reverseSale(
+        state.erpState,
+        saleId,
+        reason: reason,
+        actorUsername: actor,
+      );
+      state = state.copyWith(
+        erpState: result.state,
+        bannerMessage:
+            'Sale ${result.sale.id} reversed and inventory quantities restored.',
         isBannerError: false,
       );
       return true;
@@ -219,9 +470,36 @@ class ErpController extends StateNotifier<ErpAppViewState> {
     }
   }
 
+  Future<bool> reverseStockIn(String stockInId, String reason) async {
+    try {
+      final actor = state.currentUser?.username ?? 'admin';
+      final result = await _repository.reverseStockIn(
+        state.erpState,
+        stockInId,
+        reason: reason,
+        actorUsername: actor,
+      );
+      state = state.copyWith(
+        erpState: result.state,
+        bannerMessage:
+            'Stock-In ${result.stockIn.id} reversed and previous stock/unit cost restored.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
   Future<bool> commitDraftAudit() async {
     try {
-      final adjustments = state.erpState.materials.map((m) {
+      final activeMaterials =
+          state.erpState.materials.where((m) => !m.isArchived).toList();
+      final adjustments = activeMaterials.map((m) {
         final count = state.draftAuditCounts[m.id] ?? m.currentStock;
         return AuditAdjustmentInput(
           materialId: m.id,
@@ -243,6 +521,31 @@ class ErpController extends StateNotifier<ErpAppViewState> {
         draftAuditNote: '',
         bannerMessage:
             'Ground-Stock Audit ${result.audit.id} committed to SQLite ledger.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> reverseAudit(String auditId, String reason) async {
+    try {
+      final actor = state.currentUser?.username ?? 'admin';
+      final result = await _repository.reverseAudit(
+        state.erpState,
+        auditId,
+        reason: reason,
+        actorUsername: actor,
+      );
+      state = state.copyWith(
+        erpState: result.state,
+        bannerMessage:
+            'Stock Audit ${result.audit.id} reversed and variance adjustments undone.',
         isBannerError: false,
       );
       return true;

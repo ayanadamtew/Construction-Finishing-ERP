@@ -1,9 +1,178 @@
 import '../../core/constants/erp_constants.dart';
 
+class UserAccount {
+  final String id;
+  final String username;
+  final String email;
+  final String fullName;
+  final UserRole role;
+  final String passwordHash;
+  final bool isActive;
+  final String createdAt;
+  final String? lastLoginAt;
+
+  const UserAccount({
+    required this.id,
+    required this.username,
+    required this.email,
+    required this.fullName,
+    required this.role,
+    required this.passwordHash,
+    required this.isActive,
+    required this.createdAt,
+    this.lastLoginAt,
+  });
+
+  UserAccount copyWith({
+    String? id,
+    String? username,
+    String? email,
+    String? fullName,
+    UserRole? role,
+    String? passwordHash,
+    bool? isActive,
+    String? createdAt,
+    String? lastLoginAt,
+  }) {
+    return UserAccount(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      role: role ?? this.role,
+      passwordHash: passwordHash ?? this.passwordHash,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'username': username,
+        'email': email,
+        'fullName': fullName,
+        'role': role.code,
+        'passwordHash': passwordHash,
+        'isActive': isActive,
+        'createdAt': createdAt,
+        'lastLoginAt': lastLoginAt,
+      };
+
+  factory UserAccount.fromJson(Map<String, dynamic> json) {
+    return UserAccount(
+      id: json['id'] as String,
+      username: json['username'] as String,
+      email: json['email'] as String,
+      fullName: (json['fullName'] as String?) ?? (json['username'] as String),
+      role: UserRole.fromCode((json['role'] as String?) ?? 'staff'),
+      passwordHash: (json['passwordHash'] as String?) ?? '',
+      isActive: json['isActive'] is bool
+          ? (json['isActive'] as bool)
+          : ((json['isActive'] as num?) ?? 1) != 0,
+      createdAt: json['createdAt'] as String,
+      lastLoginAt: json['lastLoginAt'] as String?,
+    );
+  }
+}
+
+class PublicUser {
+  final String id;
+  final String username;
+  final String email;
+  final String fullName;
+  final UserRole role;
+  final bool isActive;
+  final String createdAt;
+  final String? lastLoginAt;
+
+  const PublicUser({
+    required this.id,
+    required this.username,
+    required this.email,
+    required this.fullName,
+    required this.role,
+    required this.isActive,
+    required this.createdAt,
+    this.lastLoginAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'username': username,
+        'email': email,
+        'fullName': fullName,
+        'role': role.code,
+        'isActive': isActive,
+        'createdAt': createdAt,
+        'lastLoginAt': lastLoginAt,
+      };
+
+  factory PublicUser.fromJson(Map<String, dynamic> json) {
+    return PublicUser(
+      id: json['id'] as String,
+      username: json['username'] as String,
+      email: json['email'] as String,
+      fullName: (json['fullName'] as String?) ?? (json['username'] as String),
+      role: UserRole.fromCode((json['role'] as String?) ?? 'staff'),
+      isActive: json['isActive'] is bool
+          ? (json['isActive'] as bool)
+          : ((json['isActive'] as num?) ?? 1) != 0,
+      createdAt: json['createdAt'] as String,
+      lastLoginAt: json['lastLoginAt'] as String?,
+    );
+  }
+}
+
+class CategoryRecord {
+  final String id;
+  final String code;
+  final String name;
+  final bool isSystem;
+  final String createdAt;
+  final String? createdBy;
+
+  const CategoryRecord({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.isSystem,
+    required this.createdAt,
+    this.createdBy,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'name': name,
+        'isSystem': isSystem,
+        'createdAt': createdAt,
+        'createdBy': createdBy,
+      };
+
+  factory CategoryRecord.fromJson(Map<String, dynamic> json) {
+    final String code = ((json['code'] ?? json['id'] ?? 'other') as String)
+        .trim()
+        .toLowerCase();
+    return CategoryRecord(
+      id: (json['id'] as String?) ?? 'cat-$code',
+      code: code,
+      name: (json['name'] as String?) ?? code,
+      isSystem: json['isSystem'] is bool
+          ? (json['isSystem'] as bool)
+          : ((json['isSystem'] as num?) ?? 0) != 0,
+      createdAt: (json['createdAt'] as String?) ??
+          DateTime.now().toUtc().toIso8601String(),
+      createdBy: json['createdBy'] as String?,
+    );
+  }
+}
+
 class MaterialItem {
   final String id;
   final String name;
   final MaterialCategory category;
+  final String categoryCode;
   final String specs;
   final MaterialUnit unit;
   final double currentStock;
@@ -12,11 +181,15 @@ class MaterialItem {
   final double defaultSellingPrice;
   final String createdAt;
   final String updatedAt;
+  final bool isArchived;
+  final String? archivedAt;
+  final String? archivedBy;
 
   const MaterialItem({
     required this.id,
     required this.name,
     required this.category,
+    String? categoryCode,
     required this.specs,
     required this.unit,
     required this.currentStock,
@@ -25,7 +198,13 @@ class MaterialItem {
     required this.defaultSellingPrice,
     required this.createdAt,
     required this.updatedAt,
-  });
+    this.isArchived = false,
+    this.archivedAt,
+    this.archivedBy,
+  }) : categoryCode = categoryCode ?? '';
+
+  String get effectiveCategoryCode =>
+      categoryCode.isNotEmpty ? categoryCode : category.code;
 
   bool get isOutOfStock => currentStock <= 0;
   bool get isLowStock => currentStock <= minStockLevel;
@@ -34,6 +213,7 @@ class MaterialItem {
     String? id,
     String? name,
     MaterialCategory? category,
+    String? categoryCode,
     String? specs,
     MaterialUnit? unit,
     double? currentStock,
@@ -42,11 +222,19 @@ class MaterialItem {
     double? defaultSellingPrice,
     String? createdAt,
     String? updatedAt,
+    bool? isArchived,
+    String? archivedAt,
+    String? archivedBy,
+    bool clearArchiveMetadata = false,
   }) {
+    final nextCat = category ?? this.category;
+    final nextCatCode = categoryCode ??
+        (category != null ? category.code : effectiveCategoryCode);
     return MaterialItem(
       id: id ?? this.id,
       name: name ?? this.name,
-      category: category ?? this.category,
+      category: nextCat,
+      categoryCode: nextCatCode,
       specs: specs ?? this.specs,
       unit: unit ?? this.unit,
       currentStock: currentStock ?? this.currentStock,
@@ -55,13 +243,18 @@ class MaterialItem {
       defaultSellingPrice: defaultSellingPrice ?? this.defaultSellingPrice,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isArchived: isArchived ?? this.isArchived,
+      archivedAt:
+          clearArchiveMetadata ? null : (archivedAt ?? this.archivedAt),
+      archivedBy:
+          clearArchiveMetadata ? null : (archivedBy ?? this.archivedBy),
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'category': category.code,
+        'category': effectiveCategoryCode,
         'specs': specs,
         'unit': unit.code,
         'currentStock': currentStock,
@@ -70,13 +263,18 @@ class MaterialItem {
         'defaultSellingPrice': defaultSellingPrice,
         'createdAt': createdAt,
         'updatedAt': updatedAt,
+        'isArchived': isArchived,
+        'archivedAt': archivedAt,
+        'archivedBy': archivedBy,
       };
 
   factory MaterialItem.fromJson(Map<String, dynamic> json) {
+    final rawCategory = (json['category'] as String?) ?? 'other';
     return MaterialItem(
       id: json['id'] as String,
       name: json['name'] as String,
-      category: MaterialCategory.fromCode(json['category'] as String),
+      category: MaterialCategory.fromCode(rawCategory),
+      categoryCode: rawCategory,
       specs: (json['specs'] as String?) ?? '',
       unit: MaterialUnit.fromCode(json['unit'] as String),
       currentStock: (json['currentStock'] as num).toDouble(),
@@ -85,6 +283,11 @@ class MaterialItem {
       defaultSellingPrice: (json['defaultSellingPrice'] as num).toDouble(),
       createdAt: json['createdAt'] as String,
       updatedAt: json['updatedAt'] as String,
+      isArchived: json['isArchived'] is bool
+          ? (json['isArchived'] as bool)
+          : ((json['isArchived'] as num?) ?? 0) != 0,
+      archivedAt: json['archivedAt'] as String?,
+      archivedBy: json['archivedBy'] as String?,
     );
   }
 }
@@ -148,6 +351,10 @@ class SaleTransaction {
   final double totalProfit;
   final String customerNote;
   final String createdAt;
+  final bool isReversed;
+  final String? reversedAt;
+  final String? reversedBy;
+  final String? reversalReason;
 
   const SaleTransaction({
     required this.id,
@@ -157,7 +364,32 @@ class SaleTransaction {
     required this.totalProfit,
     required this.customerNote,
     required this.createdAt,
+    this.isReversed = false,
+    this.reversedAt,
+    this.reversedBy,
+    this.reversalReason,
   });
+
+  SaleTransaction copyWith({
+    bool? isReversed,
+    String? reversedAt,
+    String? reversedBy,
+    String? reversalReason,
+  }) {
+    return SaleTransaction(
+      id: id,
+      items: items,
+      totalAmount: totalAmount,
+      totalCost: totalCost,
+      totalProfit: totalProfit,
+      customerNote: customerNote,
+      createdAt: createdAt,
+      isReversed: isReversed ?? this.isReversed,
+      reversedAt: reversedAt ?? this.reversedAt,
+      reversedBy: reversedBy ?? this.reversedBy,
+      reversalReason: reversalReason ?? this.reversalReason,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -168,6 +400,10 @@ class SaleTransaction {
         'totalProfit': totalProfit,
         'customerNote': customerNote,
         'createdAt': createdAt,
+        'isReversed': isReversed,
+        'reversedAt': reversedAt,
+        'reversedBy': reversedBy,
+        'reversalReason': reversalReason,
       };
 
   factory SaleTransaction.fromJson(Map<String, dynamic> json) {
@@ -188,6 +424,12 @@ class SaleTransaction {
       totalProfit: totalProfit,
       customerNote: (json['customerNote'] as String?) ?? '',
       createdAt: json['createdAt'] as String,
+      isReversed: json['isReversed'] is bool
+          ? (json['isReversed'] as bool)
+          : ((json['isReversed'] as num?) ?? 0) != 0,
+      reversedAt: json['reversedAt'] as String?,
+      reversedBy: json['reversedBy'] as String?,
+      reversalReason: json['reversalReason'] as String?,
     );
   }
 }
@@ -206,6 +448,10 @@ class StockInRecord {
   final double newUnitCost;
   final String supplierNote;
   final String createdAt;
+  final bool isReversed;
+  final String? reversedAt;
+  final String? reversedBy;
+  final String? reversalReason;
 
   const StockInRecord({
     required this.id,
@@ -221,7 +467,38 @@ class StockInRecord {
     required this.newUnitCost,
     required this.supplierNote,
     required this.createdAt,
+    this.isReversed = false,
+    this.reversedAt,
+    this.reversedBy,
+    this.reversalReason,
   });
+
+  StockInRecord copyWith({
+    bool? isReversed,
+    String? reversedAt,
+    String? reversedBy,
+    String? reversalReason,
+  }) {
+    return StockInRecord(
+      id: id,
+      materialId: materialId,
+      materialName: materialName,
+      unit: unit,
+      quantityAdded: quantityAdded,
+      unitPurchaseCost: unitPurchaseCost,
+      totalPurchaseCost: totalPurchaseCost,
+      previousStock: previousStock,
+      newStock: newStock,
+      previousUnitCost: previousUnitCost,
+      newUnitCost: newUnitCost,
+      supplierNote: supplierNote,
+      createdAt: createdAt,
+      isReversed: isReversed ?? this.isReversed,
+      reversedAt: reversedAt ?? this.reversedAt,
+      reversedBy: reversedBy ?? this.reversedBy,
+      reversalReason: reversalReason ?? this.reversalReason,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -238,6 +515,10 @@ class StockInRecord {
         'newUnitCost': newUnitCost,
         'supplierNote': supplierNote,
         'createdAt': createdAt,
+        'isReversed': isReversed,
+        'reversedAt': reversedAt,
+        'reversedBy': reversedBy,
+        'reversalReason': reversalReason,
       };
 
   factory StockInRecord.fromJson(Map<String, dynamic> json) {
@@ -261,6 +542,12 @@ class StockInRecord {
           ((json['newUnitCost'] ?? unitPurchaseCost) as num).toDouble(),
       supplierNote: (json['supplierNote'] as String?) ?? '',
       createdAt: json['createdAt'] as String,
+      isReversed: json['isReversed'] is bool
+          ? (json['isReversed'] as bool)
+          : ((json['isReversed'] as num?) ?? 0) != 0,
+      reversedAt: json['reversedAt'] as String?,
+      reversedBy: json['reversedBy'] as String?,
+      reversalReason: json['reversalReason'] as String?,
     );
   }
 }
@@ -312,13 +599,39 @@ class StockAuditRecord {
   final List<AuditLineItem> adjustments;
   final String auditNote;
   final String createdAt;
+  final bool isReversed;
+  final String? reversedAt;
+  final String? reversedBy;
+  final String? reversalReason;
 
   const StockAuditRecord({
     required this.id,
     required this.adjustments,
     required this.auditNote,
     required this.createdAt,
+    this.isReversed = false,
+    this.reversedAt,
+    this.reversedBy,
+    this.reversalReason,
   });
+
+  StockAuditRecord copyWith({
+    bool? isReversed,
+    String? reversedAt,
+    String? reversedBy,
+    String? reversalReason,
+  }) {
+    return StockAuditRecord(
+      id: id,
+      adjustments: adjustments,
+      auditNote: auditNote,
+      createdAt: createdAt,
+      isReversed: isReversed ?? this.isReversed,
+      reversedAt: reversedAt ?? this.reversedAt,
+      reversedBy: reversedBy ?? this.reversedBy,
+      reversalReason: reversalReason ?? this.reversalReason,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -326,6 +639,10 @@ class StockAuditRecord {
         'auditNote': auditNote,
         'note': auditNote,
         'createdAt': createdAt,
+        'isReversed': isReversed,
+        'reversedAt': reversedAt,
+        'reversedBy': reversedBy,
+        'reversalReason': reversalReason,
       };
 
   factory StockAuditRecord.fromJson(Map<String, dynamic> json) {
@@ -336,6 +653,12 @@ class StockAuditRecord {
           .toList(),
       auditNote: ((json['auditNote'] ?? json['note']) as String?) ?? '',
       createdAt: json['createdAt'] as String,
+      isReversed: json['isReversed'] is bool
+          ? (json['isReversed'] as bool)
+          : ((json['isReversed'] as num?) ?? 0) != 0,
+      reversedAt: json['reversedAt'] as String?,
+      reversedBy: json['reversedBy'] as String?,
+      reversalReason: json['reversalReason'] as String?,
     );
   }
 }
@@ -405,6 +728,7 @@ class ErpState {
   final List<SaleTransaction> sales;
   final List<StockInRecord> stockIns;
   final List<StockAuditRecord> audits;
+  final List<CategoryRecord> categories;
   final StoreSummary summary;
 
   const ErpState({
@@ -412,6 +736,7 @@ class ErpState {
     required this.sales,
     required this.stockIns,
     required this.audits,
+    this.categories = const [],
     required this.summary,
   });
 }
@@ -419,6 +744,7 @@ class ErpState {
 class RegisterMaterialInput {
   final String name;
   final MaterialCategory category;
+  final String? categoryCode;
   final String specs;
   final MaterialUnit unit;
   final double currentStock;
@@ -429,6 +755,7 @@ class RegisterMaterialInput {
   const RegisterMaterialInput({
     required this.name,
     required this.category,
+    this.categoryCode,
     this.specs = '',
     required this.unit,
     required this.currentStock,
@@ -441,6 +768,7 @@ class RegisterMaterialInput {
 class UpdateMaterialInput {
   final String? name;
   final MaterialCategory? category;
+  final String? categoryCode;
   final String? specs;
   final double? minStockLevel;
   final double? defaultSellingPrice;
@@ -449,6 +777,7 @@ class UpdateMaterialInput {
   const UpdateMaterialInput({
     this.name,
     this.category,
+    this.categoryCode,
     this.specs,
     this.minStockLevel,
     this.defaultSellingPrice,
@@ -509,5 +838,31 @@ class RecordStockAuditInput {
   const RecordStockAuditInput({
     required this.adjustments,
     this.auditNote = '',
+  });
+}
+
+class CreateUserInput {
+  final String username;
+  final String email;
+  final String fullName;
+  final UserRole role;
+  final String password;
+
+  const CreateUserInput({
+    required this.username,
+    required this.email,
+    required this.fullName,
+    required this.role,
+    required this.password,
+  });
+}
+
+class CreateCategoryInput {
+  final String code;
+  final String name;
+
+  const CreateCategoryInput({
+    required this.code,
+    required this.name,
   });
 }
