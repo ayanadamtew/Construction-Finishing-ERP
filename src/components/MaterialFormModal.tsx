@@ -23,18 +23,28 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({
   onClose,
 }) => {
   const {
+    state,
     t,
     createMaterial,
     updateMaterial,
     hasTransactionsForMaterial,
   } = useErpStore();
 
+  const availableCategories =
+    state.categories && state.categories.length > 0
+      ? state.categories
+      : ALLOWED_CATEGORIES.map((id) => ({
+          id,
+          name: t.categories[id],
+          createdAt: '',
+        }));
+
   const isEditMode = editingMaterial !== null;
   const isUnitLocked =
     isEditMode && hasTransactionsForMaterial(editingMaterial.id);
 
   const [name, setName] = useState<string>('');
-  const [category, setCategory] = useState<MaterialCategory>(
+  const [category, setCategory] = useState<string>(
     MaterialCategory.REBAR
   );
   const [specs, setSpecs] = useState<string>('');
@@ -252,14 +262,14 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({
               <select
                 id="material-category-select"
                 value={category}
-                onChange={(e) =>
-                  setCategory(e.target.value as MaterialCategory)
-                }
+                onChange={(e) => setCategory(e.target.value)}
                 className="w-full min-h-[44px] px-3 py-2 text-sm bg-[#FFFFFF] border border-[#DCD9D0] rounded-md text-[#14171A] focus:outline-none focus:border-[#B84A14]"
               >
-                {ALLOWED_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {t.categories[cat]}
+                {availableCategories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {(t.categories as Record<string, string | undefined>)[
+                      cat.id
+                    ] || cat.name}
                   </option>
                 ))}
               </select>

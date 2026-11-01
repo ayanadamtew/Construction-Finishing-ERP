@@ -2,7 +2,9 @@ import {
   ALLOWED_CATEGORIES,
   ALLOWED_UNITS,
   AuditLineItem,
+  CategoryItem,
   CreateAuditInput,
+  CreateCategoryInput,
   CreateMaterialInput,
   CreateSaleInput,
   CreateStockInInput,
@@ -149,17 +151,77 @@ export function validateOptionalNote(
 }
 
 /**
+ * Validates required reversal reason (1..200 chars after trim).
+ */
+export function validateRequiredReversalReason(reason: unknown): string {
+  if (typeof reason !== 'string' || !reason.trim()) {
+    throw new AppDomainError(
+      'VALIDATION_ERROR',
+      'A reversal reason is required to reverse a completed transaction.',
+      { field: 'reason' }
+    );
+  }
+  const trimmed = reason.trim();
+  if (trimmed.length > 200) {
+    throw new AppDomainError(
+      'VALIDATION_ERROR',
+      'Reversal reason must not exceed 200 characters.',
+      { field: 'reason' }
+    );
+  }
+  return trimmed;
+}
+
+/**
+ * Creates the default category items for a Construction & Finishing Material Store.
+ */
+export function createDefaultCategories(
+  timestamp: string = '2026-10-30T08:00:00.000Z'
+): CategoryItem[] {
+  const labels: Record<MaterialCategory, string> = {
+    [MaterialCategory.REBAR]: 'Rebar',
+    [MaterialCategory.CEMENT]: 'Cement',
+    [MaterialCategory.TILES]: 'Tiles',
+    [MaterialCategory.PAINT]: 'Paint',
+    [MaterialCategory.HARDWARE]: 'Hardware',
+    [MaterialCategory.OTHER]: 'Other',
+  };
+  return ALLOWED_CATEGORIES.map((id) => ({
+    id,
+    name: labels[id],
+    isSystemDefault: true,
+    createdAt: timestamp,
+  }));
+}
+
+/**
+ * Ensures state.categories is initialized.
+ */
+export function ensureCategoriesInitialized(
+  state: ErpState,
+  nowIso: string = '2026-10-30T08:00:00.000Z'
+): CategoryItem[] {
+  if (!Array.isArray(state.categories) || state.categories.length === 0) {
+    state.categories = createDefaultCategories(nowIso);
+  }
+  return state.categories;
+}
+
+/**
  * Computes the derived StoreSummary KPIs from canonical state (FR-020).
+ * Excludes reversed sales from totalRevenue and totalProfit, and excludes
+ * archived materials from active low-stock alerts.
  */
 export function calculateStoreSummary(
   materials: Material[],
   sales: SaleTransaction[]
 ): StoreSummary {
+  const activeSales = sales.filter((sale) => !sale.isReversed);
   const totalRevenue = round2(
-    sales.reduce((sum, sale) => sum + sale.totalRevenue, 0)
+    activeSales.reduce((sum, sale) => sum + sale.totalRevenue, 0)
   );
   const totalProfit = round2(
-    sales.reduce((sum, sale) => sum + sale.totalProfit, 0)
+    activeSales.reduce((sum, sale) => sum + sale.totalProfit, 0)
   );
   const inventoryCostValue = round2(
     materials.reduce(
@@ -174,7 +236,7 @@ export function calculateStoreSummary(
     )
   );
   const lowStockCount = materials.filter(
-    (mat) => mat.currentStock <= mat.minStockLevel
+    (mat) => !mat.isArchived && mat.currentStock <= mat.minStockLevel
   ).length;
 
   return {
@@ -187,13 +249,22 @@ export function calculateStoreSummary(
 }
 
 /**
- * Validates that a material category and tracking unit belong to allowed enums (VAL-002).
+ * Validates that a material category and tracking unit belong to allowed enums
+ * or registered store categories (VAL-002).
  */
 export function validateCategoryAndUnit(
   category: string,
-  unit: string
-): { category: MaterialCategory; unit: MaterialUnit } {
-  if (!ALLOWED_CATEGORIES.includes(category as MaterialCategory)) {
+  unit: string,
+  registeredCategories?: CategoryItem[]
+): { category: MaterialCategory | string; unit: MaterialUnit } {
+  const allowedCategoryIds = new Set<string>(ALLOWED_CATEGORIES);
+  if (Array.isArray(registeredCategories)) {
+    for (const c of registeredCategories) {
+      allowedCategoryIds.add(c.id);
+    }
+  }
+
+  if (!category || !allowedCategoryIds.has(category)) {
     throw new AppDomainError(
       'VALIDATION_ERROR',
       `Invalid material category: ${category}`,
@@ -208,7 +279,7 @@ export function validateCategoryAndUnit(
     );
   }
   return {
-    category: category as MaterialCategory,
+    category,
     unit: unit as MaterialUnit,
   };
 }
@@ -244,11 +315,13 @@ export function registerMaterial(
   input: CreateMaterialInput,
   nowIso: string = new Date().toISOString()
 ): Material {
+  ensureCategoriesInitialized(state, nowIso);
   const name = validateMaterialName(input.name);
   const specs = validateMaterialSpecs(input.specs);
   const { category, unit } = validateCategoryAndUnit(
     String(input.category ?? ''),
-    String(input.unit ?? '')
+    String(input.unit ?? ''),
+    state.categories
   );
   const currentStock = assertNonNegativeNumber(
     input.initialStock,
@@ -274,6 +347,7 @@ export function registerMaterial(
     minStockLevel,
     unitCost,
     defaultSellingPrice,
+    isArchived: false,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
@@ -293,6 +367,7 @@ export function updateMaterialMetadata(
   input: UpdateMaterialInput,
   nowIso: string = new Date().toISOString()
 ): Material {
+  ensureCategoriesInitialized(state, nowIso);
   const material = state.materials.find((m) => m.id === materialId);
   if (!material) {
     throw new AppDomainError(
@@ -323,7 +398,8 @@ export function updateMaterialMetadata(
 
   const { category: nextCategory, unit: nextUnit } = validateCategoryAndUnit(
     nextCategoryStr,
-    nextUnitStr
+    nextUnitStr,
+    state.categories
   );
 
   if (
@@ -363,13 +439,169 @@ export function updateMaterialMetadata(
 }
 
 /**
+ * Permanently deletes a material ONLY if it has never been used in any
+ * sales, stock-in, or ground-stock audit transactions.
+ * If transaction history exists, throws MATERIAL_HAS_HISTORY (409) and instructs
+ * the user to archive/deactivate the material instead.
+ */
+export function deleteMaterial(state: ErpState, materialId: string): string {
+  const index = state.materials.findIndex((m) => m.id === materialId);
+  if (index === -1) {
+    throw new AppDomainError(
+      'MATERIAL_NOT_FOUND',
+      `Material with ID "${materialId}" was not found.`,
+      { materialId }
+    );
+  }
+
+  const material = state.materials[index];
+  if (materialHasTransactions(state, materialId)) {
+    throw new AppDomainError(
+      'MATERIAL_HAS_HISTORY',
+      `Cannot permanently delete "${material.name}" because it has recorded inventory transactions (sales, stock-in, or audits). Archive this material instead so historical records remain intact.`,
+      {
+        materialId: material.id,
+        materialName: material.name,
+      }
+    );
+  }
+
+  state.materials.splice(index, 1);
+  state.summary = calculateStoreSummary(state.materials, state.sales);
+  return material.id;
+}
+
+/**
+ * Archives (deactivates) or restores a material so historical transactions remain intact
+ * while preventing new transactions on archived items.
+ */
+export function setMaterialArchivedStatus(
+  state: ErpState,
+  materialId: string,
+  isArchived: boolean,
+  actorUsername: string = 'admin',
+  nowIso: string = new Date().toISOString()
+): Material {
+  const material = state.materials.find((m) => m.id === materialId);
+  if (!material) {
+    throw new AppDomainError(
+      'MATERIAL_NOT_FOUND',
+      `Material with ID "${materialId}" was not found.`,
+      { materialId }
+    );
+  }
+
+  material.isArchived = Boolean(isArchived);
+  material.archivedAt = isArchived ? nowIso : undefined;
+  material.archivedBy = isArchived ? actorUsername : undefined;
+  material.updatedAt = nowIso;
+
+  state.summary = calculateStoreSummary(state.materials, state.sales);
+  return material;
+}
+
+/**
+ * Creates a material category in the store catalog.
+ */
+export function createCategory(
+  state: ErpState,
+  input: CreateCategoryInput,
+  nowIso: string = new Date().toISOString()
+): CategoryItem {
+  ensureCategoriesInitialized(state, nowIso);
+  const rawName = typeof input?.name === 'string' ? input.name.trim() : '';
+  if (rawName.length < 2 || rawName.length > 50) {
+    throw new AppDomainError(
+      'VALIDATION_ERROR',
+      'Category name must be between 2 and 50 characters.',
+      { field: 'name' }
+    );
+  }
+
+  const rawId =
+    typeof input?.id === 'string' && input.id.trim()
+      ? input.id.trim().toLowerCase()
+      : rawName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+
+  if (!rawId) {
+    throw new AppDomainError(
+      'VALIDATION_ERROR',
+      'Category ID must contain valid alphanumeric characters.',
+      { field: 'id' }
+    );
+  }
+
+  const exists = state.categories!.some(
+    (c) =>
+      c.id.toLowerCase() === rawId ||
+      c.name.toLowerCase() === rawName.toLowerCase()
+  );
+  if (exists) {
+    throw new AppDomainError(
+      'DUPLICATE_RECORD',
+      `Category "${rawName}" already exists.`,
+      { categoryId: rawId, field: 'name' }
+    );
+  }
+
+  const created: CategoryItem = {
+    id: rawId,
+    name: rawName,
+    isSystemDefault: false,
+    createdAt: nowIso,
+  };
+
+  state.categories!.push(created);
+  return created;
+}
+
+/**
+ * Deletes a category ONLY when no existing materials (active or archived) use it.
+ */
+export function deleteCategory(state: ErpState, categoryId: string): string {
+  ensureCategoriesInitialized(state);
+  const normalizedId = String(categoryId ?? '').trim();
+  const index = state.categories!.findIndex((c) => c.id === normalizedId);
+  if (index === -1) {
+    throw new AppDomainError(
+      'RECORD_NOT_FOUND',
+      `Category "${normalizedId}" was not found.`,
+      { categoryId: normalizedId }
+    );
+  }
+
+  const category = state.categories![index];
+  const materialsUsingCategory = state.materials.filter(
+    (m) => m.category === normalizedId
+  );
+
+  if (materialsUsingCategory.length > 0) {
+    throw new AppDomainError(
+      'CATEGORY_IN_USE',
+      `Cannot delete category "${category.name}" because it is currently used by ${materialsUsingCategory.length} material(s). Reassign or remove those materials first.`,
+      {
+        categoryId: category.id,
+        inUseCount: materialsUsingCategory.length,
+      }
+    );
+  }
+
+  state.categories!.splice(index, 1);
+  return category.id;
+}
+
+/**
  * Executes an atomic multi-item sale transaction with strict stock-floor blocking
  * and aggregate duplicate-line protection (FR-006..FR-012, BR-002, BR-003, FAIL-004).
  */
 export function recordMultiItemSale(
   state: ErpState,
   input: CreateSaleInput,
-  nowIso: string = new Date().toISOString()
+  nowIso: string = new Date().toISOString(),
+  actorUsername?: string
 ): SaleTransaction {
   if (!input || !Array.isArray(input.items) || input.items.length === 0) {
     throw new AppDomainError(
@@ -437,6 +669,14 @@ export function recordMultiItemSale(
       );
     }
 
+    if (material.isArchived) {
+      throw new AppDomainError(
+        'MATERIAL_ARCHIVED',
+        `Material "${material.name}" is archived and cannot be sold. Restore it first.`,
+        { materialId: material.id, materialName: material.name }
+      );
+    }
+
     if (entry.quantity > material.currentStock) {
       throw new AppDomainError(
         'INSUFFICIENT_STOCK',
@@ -494,11 +734,77 @@ export function recordMultiItemSale(
     items: saleLineItems,
     totalRevenue,
     totalProfit,
+    createdBy: actorUsername,
+    isReversed: false,
   };
 
   state.sales.unshift(saleTransaction);
   state.summary = calculateStoreSummary(state.materials, state.sales);
   return saleTransaction;
+}
+
+/**
+ * Reverses/cancels a completed sale transaction atomically:
+ * - Never deletes the sale record
+ * - Prevents duplicate reversals
+ * - Restores corresponding inventory quantities
+ * - Records reversal reason, timestamp, and responsible user
+ */
+export function reverseSaleTransaction(
+  state: ErpState,
+  saleId: string,
+  reason: unknown,
+  actorUsername: string = 'admin',
+  nowIso: string = new Date().toISOString()
+): SaleTransaction {
+  const validatedReason = validateRequiredReversalReason(reason);
+
+  const sale = state.sales.find((s) => s.id === saleId);
+  if (!sale) {
+    throw new AppDomainError(
+      'RECORD_NOT_FOUND',
+      `Sale transaction "${saleId}" was not found.`,
+      { recordId: saleId }
+    );
+  }
+
+  if (sale.isReversed) {
+    throw new AppDomainError(
+      'ALREADY_REVERSED',
+      `Sale transaction "${saleId}" has already been reversed.`,
+      { recordId: saleId }
+    );
+  }
+
+  // First pass: verify all referenced materials exist in the catalog
+  const restorePlans: Array<{ material: Material; quantity: number }> = [];
+  for (const item of sale.items) {
+    const material = state.materials.find((m) => m.id === item.materialId);
+    if (!material) {
+      throw new AppDomainError(
+        'MATERIAL_NOT_FOUND',
+        `Material "${item.materialName}" (${item.materialId}) was not found for sale reversal.`,
+        { materialId: item.materialId, materialName: item.materialName }
+      );
+    }
+    restorePlans.push({ material, quantity: item.quantity });
+  }
+
+  // Second pass: atomically restore stock balances
+  for (const plan of restorePlans) {
+    plan.material.currentStock = round2(
+      plan.material.currentStock + plan.quantity
+    );
+    plan.material.updatedAt = nowIso;
+  }
+
+  sale.isReversed = true;
+  sale.reversedAt = nowIso;
+  sale.reversedBy = actorUsername;
+  sale.reversalReason = validatedReason;
+
+  state.summary = calculateStoreSummary(state.materials, state.sales);
+  return sale;
 }
 
 /**
@@ -530,7 +836,8 @@ export function calculateWeightedAverageCost(
 export function recordStockIn(
   state: ErpState,
   input: CreateStockInInput,
-  nowIso: string = new Date().toISOString()
+  nowIso: string = new Date().toISOString(),
+  actorUsername?: string
 ): { stockIn: StockInRecord; material: Material } {
   if (
     !input ||
@@ -554,6 +861,14 @@ export function recordStockIn(
     );
   }
 
+  if (material.isArchived) {
+    throw new AppDomainError(
+      'MATERIAL_ARCHIVED',
+      `Material "${material.name}" is archived and cannot receive new stock-in deliveries. Restore it first.`,
+      { materialId: material.id, materialName: material.name }
+    );
+  }
+
   const quantityAdded = assertPositiveNumber(
     input.quantityAdded,
     'quantityAdded'
@@ -569,11 +884,12 @@ export function recordStockIn(
   );
 
   const previousStock = material.currentStock;
+  const previousUnitCost = material.unitCost;
   const newStock = round2(previousStock + quantityAdded);
   const totalCost = round2(quantityAdded * unitPurchaseCost);
   const updatedUnitCost = calculateWeightedAverageCost(
     previousStock,
-    material.unitCost,
+    previousUnitCost,
     quantityAdded,
     unitPurchaseCost
   );
@@ -592,13 +908,91 @@ export function recordStockIn(
     totalCost,
     previousStock,
     newStock,
+    previousUnitCost,
     supplierNote,
     createdAt: nowIso,
+    createdBy: actorUsername,
+    isReversed: false,
   };
 
   state.stockIns.unshift(stockInRecord);
   state.summary = calculateStoreSummary(state.materials, state.sales);
   return { stockIn: stockInRecord, material };
+}
+
+/**
+ * Reverses a completed Stock-In transaction atomically:
+ * - Never deletes the Stock-In record
+ * - Prevents duplicate reversals
+ * - Blocks reversal if current ground stock is less than quantityAdded (INSUFFICIENT_STOCK_FOR_REVERSAL)
+ * - Deducts quantityAdded and restores previous unit cost safely
+ */
+export function reverseStockInRecord(
+  state: ErpState,
+  stockInId: string,
+  reason: unknown,
+  actorUsername: string = 'admin',
+  nowIso: string = new Date().toISOString()
+): { stockIn: StockInRecord; material: Material } {
+  const validatedReason = validateRequiredReversalReason(reason);
+
+  const stockIn = state.stockIns.find((rec) => rec.id === stockInId);
+  if (!stockIn) {
+    throw new AppDomainError(
+      'RECORD_NOT_FOUND',
+      `Stock-In record "${stockInId}" was not found.`,
+      { recordId: stockInId }
+    );
+  }
+
+  if (stockIn.isReversed) {
+    throw new AppDomainError(
+      'ALREADY_REVERSED',
+      `Stock-In record "${stockInId}" has already been reversed.`,
+      { recordId: stockInId }
+    );
+  }
+
+  const material = state.materials.find((m) => m.id === stockIn.materialId);
+  if (!material) {
+    throw new AppDomainError(
+      'MATERIAL_NOT_FOUND',
+      `Material "${stockIn.materialName}" (${stockIn.materialId}) was not found.`,
+      { materialId: stockIn.materialId, materialName: stockIn.materialName }
+    );
+  }
+
+  if (material.currentStock < stockIn.quantityAdded) {
+    throw new AppDomainError(
+      'INSUFFICIENT_STOCK_FOR_REVERSAL',
+      `Cannot reverse Stock-In of ${stockIn.quantityAdded} ${stockIn.unit} for "${material.name}" because current stock is only ${material.currentStock} ${material.unit}.`,
+      {
+        recordId: stockIn.id,
+        materialId: material.id,
+        materialName: material.name,
+        requested: stockIn.quantityAdded,
+        available: material.currentStock,
+        unit: material.unit,
+      }
+    );
+  }
+
+  material.currentStock = round2(material.currentStock - stockIn.quantityAdded);
+  if (
+    typeof stockIn.previousUnitCost === 'number' &&
+    stockIn.previousUnitCost >= 0
+  ) {
+    material.unitCost = round2(stockIn.previousUnitCost);
+  }
+  material.updatedAt = nowIso;
+
+  stockIn.isReversed = true;
+  stockIn.reversedAt = nowIso;
+  stockIn.reversedBy = actorUsername;
+  stockIn.reversalReason = validatedReason;
+
+  state.summary = calculateStoreSummary(state.materials, state.sales);
+  return { stockIn, material };
 }
 
 /**
@@ -609,7 +1003,8 @@ export function recordStockIn(
 export function recordStockAudit(
   state: ErpState,
   input: CreateAuditInput,
-  nowIso: string = new Date().toISOString()
+  nowIso: string = new Date().toISOString(),
+  actorUsername?: string
 ): StockAuditRecord {
   if (!input || !Array.isArray(input.items) || input.items.length === 0) {
     throw new AppDomainError(
@@ -659,6 +1054,14 @@ export function recordStockAudit(
       );
     }
 
+    if (material.isArchived) {
+      throw new AppDomainError(
+        'MATERIAL_ARCHIVED',
+        `Material "${material.name}" is archived and cannot be included in a ground-stock audit. Restore it first.`,
+        { materialId: material.id, materialName: material.name }
+      );
+    }
+
     const expectedStock = material.currentStock;
     const variance = round2(physicalCount - expectedStock);
 
@@ -689,6 +1092,8 @@ export function recordStockAudit(
     createdAt: nowIso,
     note,
     adjustments,
+    createdBy: actorUsername,
+    isReversed: false,
   };
 
   state.audits.unshift(auditRecord);
@@ -697,10 +1102,86 @@ export function recordStockAudit(
 }
 
 /**
+ * Reverses a completed Ground-Stock Audit record atomically:
+ * - Never deletes the completed audit record
+ * - Prevents duplicate reversals
+ * - Applies the inverse variance (-adj.variance) to each material if stock floor >= 0 permits
+ */
+export function reverseStockAuditRecord(
+  state: ErpState,
+  auditId: string,
+  reason: unknown,
+  actorUsername: string = 'admin',
+  nowIso: string = new Date().toISOString()
+): StockAuditRecord {
+  const validatedReason = validateRequiredReversalReason(reason);
+
+  const audit = state.audits.find((a) => a.id === auditId);
+  if (!audit) {
+    throw new AppDomainError(
+      'RECORD_NOT_FOUND',
+      `Ground-stock audit record "${auditId}" was not found.`,
+      { recordId: auditId }
+    );
+  }
+
+  if (audit.isReversed) {
+    throw new AppDomainError(
+      'ALREADY_REVERSED',
+      `Ground-stock audit record "${auditId}" has already been reversed.`,
+      { recordId: auditId }
+    );
+  }
+
+  const reversalPlans: Array<{ material: Material; nextStock: number }> = [];
+  for (const adj of audit.adjustments) {
+    const material = state.materials.find((m) => m.id === adj.materialId);
+    if (!material) {
+      throw new AppDomainError(
+        'MATERIAL_NOT_FOUND',
+        `Material "${adj.materialName}" (${adj.materialId}) was not found for audit reversal.`,
+        { materialId: adj.materialId, materialName: adj.materialName }
+      );
+    }
+
+    const nextStock = round2(material.currentStock - adj.variance);
+    if (nextStock < 0) {
+      throw new AppDomainError(
+        'INSUFFICIENT_STOCK_FOR_REVERSAL',
+        `Cannot reverse audit adjustment for "${material.name}" because reversing surplus variance (+${adj.variance}) would drop current stock (${material.currentStock}) below 0.`,
+        {
+          recordId: audit.id,
+          materialId: material.id,
+          materialName: material.name,
+          requested: adj.variance,
+          available: material.currentStock,
+          unit: material.unit,
+        }
+      );
+    }
+    reversalPlans.push({ material, nextStock });
+  }
+
+  for (const plan of reversalPlans) {
+    plan.material.currentStock = plan.nextStock;
+    plan.material.updatedAt = nowIso;
+  }
+
+  audit.isReversed = true;
+  audit.reversedAt = nowIso;
+  audit.reversedBy = actorUsername;
+  audit.reversalReason = validatedReason;
+
+  state.summary = calculateStoreSummary(state.materials, state.sales);
+  return audit;
+}
+
+/**
  * Creates the deterministic initial seed state for a Construction & Finishing Material Store.
  */
 export function createInitialErpState(): ErpState {
   const timestamp = '2026-10-30T08:00:00.000Z';
+  const categories = createDefaultCategories(timestamp);
   const materials: Material[] = [
     {
       id: 'mat_rebar_12',
@@ -712,6 +1193,7 @@ export function createInitialErpState(): ErpState {
       minStockLevel: 40,
       unitCost: 860,
       defaultSellingPrice: 990,
+      isArchived: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -725,6 +1207,7 @@ export function createInitialErpState(): ErpState {
       minStockLevel: 30,
       unitCost: 1520,
       defaultSellingPrice: 1750,
+      isArchived: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -738,6 +1221,7 @@ export function createInitialErpState(): ErpState {
       minStockLevel: 50,
       unitCost: 1120,
       defaultSellingPrice: 1280,
+      isArchived: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -751,6 +1235,7 @@ export function createInitialErpState(): ErpState {
       minStockLevel: 25,
       unitCost: 1350,
       defaultSellingPrice: 1620,
+      isArchived: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -764,6 +1249,7 @@ export function createInitialErpState(): ErpState {
       minStockLevel: 10,
       unitCost: 3400,
       defaultSellingPrice: 3950,
+      isArchived: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -777,6 +1263,7 @@ export function createInitialErpState(): ErpState {
       minStockLevel: 20,
       unitCost: 210,
       defaultSellingPrice: 265,
+      isArchived: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -788,6 +1275,7 @@ export function createInitialErpState(): ErpState {
 
   return {
     materials,
+    categories,
     sales,
     stockIns,
     audits,

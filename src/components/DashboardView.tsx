@@ -10,8 +10,12 @@ import {
 } from 'lucide-react';
 import { useErpStore } from '../context/ErpContext';
 import { round2 } from '../domain/inventoryEngine';
-import { formatETB, formatQuantity } from '../i18n/translations';
-import { ALLOWED_CATEGORIES, MaterialCategory } from '../types/erp';
+import {
+  formatETB,
+  formatQuantity,
+  getCategoryLabel,
+} from '../i18n/translations';
+import { ALLOWED_CATEGORIES } from '../types/erp';
 
 interface RecentActivityEntry {
   id: string;
@@ -21,6 +25,7 @@ interface RecentActivityEntry {
   subtitle: string;
   rightPrimary: string;
   rightSecondary: string;
+  isReversed?: boolean;
 }
 
 export const DashboardView: React.FC = () => {
@@ -33,35 +38,47 @@ export const DashboardView: React.FC = () => {
     openStockInForMaterial,
   } = useErpStore();
 
-  const { summary, materials, sales, stockIns, audits } = state;
+  const { summary, materials, sales, stockIns, audits, categories } = state;
+
+  const activeMaterials = useMemo(
+    () => materials.filter((m) => !m.isArchived),
+    [materials]
+  );
 
   // Low-Stock & Out-of-Stock Materials (FR-020: currentStock <= minStockLevel)
   const lowStockMaterials = useMemo(
-    () => materials.filter((m) => m.currentStock <= m.minStockLevel),
-    [materials]
+    () => activeMaterials.filter((m) => m.currentStock <= m.minStockLevel),
+    [activeMaterials]
   );
 
   // Inventory Valuation by Category Breakdown
   const categoryBreakdown = useMemo(() => {
-    return ALLOWED_CATEGORIES.map((category: MaterialCategory) => {
-      const items = materials.filter((m) => m.category === category);
-      const costValue = round2(
-        items.reduce((sum, m) => sum + m.currentStock * m.unitCost, 0)
-      );
-      const retailValue = round2(
-        items.reduce(
-          (sum, m) => sum + m.currentStock * m.defaultSellingPrice,
-          0
-        )
-      );
-      return {
-        category,
-        count: items.length,
-        costValue,
-        retailValue,
-      };
-    }).filter((entry) => entry.count > 0);
-  }, [materials]);
+    const categoryIds =
+      categories && categories.length > 0
+        ? categories.map((c) => c.id)
+        : [...ALLOWED_CATEGORIES];
+
+    return categoryIds
+      .map((category) => {
+        const items = activeMaterials.filter((m) => m.category === category);
+        const costValue = round2(
+          items.reduce((sum, m) => sum + m.currentStock * m.unitCost, 0)
+        );
+        const retailValue = round2(
+          items.reduce(
+            (sum, m) => sum + m.currentStock * m.defaultSellingPrice,
+            0
+          )
+        );
+        return {
+          category,
+          count: items.length,
+          costValue,
+          retailValue,
+        };
+      })
+      .filter((entry) => entry.count > 0);
+  }, [activeMaterials, categories]);
 
   // Recent 5 Store Transactions across Sales, Stock-Ins, and Audits (SCR-01)
   const recentActivities = useMemo<RecentActivityEntry[]>(() => {
@@ -72,10 +89,15 @@ export const DashboardView: React.FC = () => {
         id: s.id,
         kind: 'sale',
         createdAt: s.createdAt,
-        title: `${t.auditLog.saleBadgeLabel} · ${s.items.map((i) => i.materialName).join(', ')}`,
+        title: `${t.auditLog.saleBadgeLabel}${
+          s.isReversed ? ' [REVERSED]' : ''
+        } · ${s.items.map((i) => i.materialName).join(', ')}`,
         subtitle: s.customerNote || t.auditLog.saleNoteFallback,
         rightPrimary: formatETB(s.totalRevenue),
-        rightSecondary: `${t.pos.estimatedProfitLabel}: ${formatETB(s.totalProfit)}`,
+        rightSecondary: `${t.pos.estimatedProfitLabel}: ${formatETB(
+          s.totalProfit
+        )}`,
+        isReversed: s.isReversed,
       });
     }
 
@@ -84,10 +106,13 @@ export const DashboardView: React.FC = () => {
         id: st.id,
         kind: 'stock-in',
         createdAt: st.createdAt,
-        title: `${t.auditLog.stockInBadgeLabel} · ${st.materialName}`,
+        title: `${t.auditLog.stockInBadgeLabel}${
+          st.isReversed ? ' [REVERSED]' : ''
+        } · ${st.materialName}`,
         subtitle: st.supplierNote || t.stockIn.supplierNoteFallback,
         rightPrimary: `+${formatQuantity(st.quantityAdded)} ${t.units[st.unit]}`,
         rightSecondary: formatETB(st.totalCost),
+        isReversed: st.isReversed,
       });
     }
 
@@ -96,18 +121,25 @@ export const DashboardView: React.FC = () => {
         id: a.id,
         kind: 'audit',
         createdAt: a.createdAt,
-        title: `${t.auditLog.auditBadgeLabel} (${a.adjustments.length})`,
+        title: `${t.auditLog.auditBadgeLabel}${
+          a.isReversed ? ' [REVERSED]' : ''
+        } (${a.adjustments.length})`,
         subtitle: a.note || t.auditLog.auditNoteFallback,
         rightPrimary: a.adjustments
           .map(
             (adj) =>
-              `${adj.variance > 0 ? `+${formatQuantity(adj.variance)}` : formatQuantity(adj.variance)} ${t.units[adj.unit]}`
+              `${
+                adj.variance > 0
+                  ? `+${formatQuantity(adj.variance)}`
+                  : formatQuantity(adj.variance)
+              } ${t.units[adj.unit]}`
           )
           .join(', '),
         rightSecondary: new Date(a.createdAt).toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
         }),
+        isReversed: a.isReversed,
       });
     }
 
@@ -118,6 +150,11 @@ export const DashboardView: React.FC = () => {
       )
       .slice(0, 5);
   }, [sales, stockIns, audits, t]);
+
+  const activeSalesCount = useMemo(
+    () => sales.filter((s) => !s.isReversed).length,
+    [sales]
+  );
 
   return (
     <div className="space-y-6">
@@ -185,7 +222,7 @@ export const DashboardView: React.FC = () => {
             {formatETB(summary.totalRevenue)}
           </p>
           <p className="mt-1 text-xs text-[#6E757C] font-mono-tabular">
-            {t.kpis.completedSales}: {sales.length}
+            {t.kpis.completedSales}: {activeSalesCount}
           </p>
         </div>
 
@@ -226,17 +263,17 @@ export const DashboardView: React.FC = () => {
             {summary.lowStockCount}
           </p>
           <p className="mt-1 text-xs text-[#6E757C] font-mono-tabular">
-            {t.kpis.registeredMaterials}: {materials.length} ·{' '}
+            {t.kpis.registeredMaterials}: {activeMaterials.length} ·{' '}
             {t.kpis.groundAudits}: {audits.length}
           </p>
         </div>
       </section>
 
-      {/* Main 2-Column Split (SCR-01: Left 7 cols Low-Stock & Active Catalog, Right 5 cols Category Valuation & Recent Activity) */}
+      {/* Main 2-Column Split */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
-          {/* 1. Low-Stock & Restock Attention List (FR-020) */}
+          {/* 1. Low-Stock & Restock Attention List */}
           <section
             aria-label={t.dashboard.lowStockHeading}
             className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg overflow-hidden"
@@ -328,7 +365,7 @@ export const DashboardView: React.FC = () => {
             <div className="px-4 sm:px-5 py-3.5 border-b border-[#ECEAE3] flex items-center justify-between gap-2">
               <div>
                 <h3 className="text-base font-semibold text-[#14171A]">
-                  {t.dashboard.activeDirectoryHeading} ({materials.length})
+                  {t.dashboard.activeDirectoryHeading} ({activeMaterials.length})
                 </h3>
                 <p className="text-xs text-[#4A5056] mt-0.5">
                   {t.dashboard.activeDirectorySubtitle}
@@ -350,7 +387,7 @@ export const DashboardView: React.FC = () => {
               </div>
             ) : (
               <div className="divide-y divide-[#ECEAE3]">
-                {materials.map((item) => {
+                {activeMaterials.map((item) => {
                   const isLowStock = item.currentStock <= item.minStockLevel;
                   return (
                     <div
@@ -376,7 +413,8 @@ export const DashboardView: React.FC = () => {
                           </span>
                         </div>
                         <p className="text-xs text-[#4A5056] mt-0.5">
-                          {t.categories[item.category]} · {item.specs}
+                          {getCategoryLabel(t, item.category, categories)} ·{' '}
+                          {item.specs}
                         </p>
                       </div>
 
@@ -450,7 +488,7 @@ export const DashboardView: React.FC = () => {
                 >
                   <div>
                     <h4 className="text-sm font-semibold text-[#14171A]">
-                      {t.categories[cat.category]}
+                      {getCategoryLabel(t, cat.category, categories)}
                     </h4>
                     <p className="text-xs text-[#6E757C] font-mono-tabular">
                       {cat.count} {t.dashboard.itemsCountLabel}
@@ -509,7 +547,9 @@ export const DashboardView: React.FC = () => {
                 {recentActivities.map((act) => (
                   <div
                     key={act.id}
-                    className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3"
+                    className={`px-4 sm:px-5 py-3 flex items-center justify-between gap-3 ${
+                      act.isReversed ? 'opacity-75' : ''
+                    }`}
                   >
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-[#14171A] truncate">
@@ -520,7 +560,13 @@ export const DashboardView: React.FC = () => {
                       </p>
                     </div>
                     <div className="text-right font-mono-tabular shrink-0">
-                      <p className="text-xs font-bold text-[#14171A]">
+                      <p
+                        className={`text-xs font-bold ${
+                          act.isReversed
+                            ? 'text-[#B91C1C] line-through'
+                            : 'text-[#14171A]'
+                        }`}
+                      >
                         {act.rightPrimary}
                       </p>
                       <p className="text-[11px] text-[#6E757C]">

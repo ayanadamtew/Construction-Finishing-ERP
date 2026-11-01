@@ -294,3 +294,27 @@ Commits a Physical Ground-Stock Audit reconciliation, updating each audited mate
   "summary": { /* Updated KPI summary */ }
 }
 ```
+
+---
+
+## 5. Authentication, User Management & Delete/Reversal Endpoints
+
+All `/api/*` endpoints (except `POST /api/auth/login`) require an `Authorization: Bearer <token>` header.
+
+| Method | Path | Role | Purpose |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Public (Pre-registered) | Authenticate with `usernameOrEmail` and `password`; returns `{ token, expiresAt, user }`. |
+| `POST` | `/api/auth/logout` | Authenticated | Invalidate the active Bearer session token. |
+| `GET` | `/api/auth/me` | Authenticated | Verify session token and return `{ user }`. |
+| `GET` | `/api/users` | Admin | List all authorized user accounts (`PublicUser[]`, no password hashes). |
+| `POST` | `/api/users` | Admin | Provision a new authorized user account (`username`, `displayName`, `password`, `role`). |
+| `PATCH` | `/api/users/:id/status` | Admin | Activate or deactivate a user account (blocks deactivating last active admin with `409 LAST_ADMIN_PROTECTION`). |
+| `DELETE` | `/api/users/:id` | Admin | Permanently remove a user account (blocks deleting last active admin with `409 LAST_ADMIN_PROTECTION`). |
+| `DELETE` | `/api/materials/:id` | Authenticated | Permanently delete an unused material (`200 OK`), or return `409 MATERIAL_HAS_HISTORY` if referenced in transactions. |
+| `POST` | `/api/materials/:id/archive` | Authenticated | Archive (`isArchived: true`) or restore (`isArchived: false`) a material with history. |
+| `POST` | `/api/categories` | Authenticated | Create a new material category (`201 Created`). |
+| `DELETE` | `/api/categories/:id` | Authenticated | Delete an unused category (`200 OK`), or return `409 CATEGORY_IN_USE` if materials use it. |
+| `POST` | `/api/sales/:id/reverse` | Authenticated | Reverse a completed sale with required `reason`, restoring sold stock and recording `reversedBy` (`409 ALREADY_REVERSED` on duplicate). |
+| `POST` | `/api/stock-in/:id/reverse` | Authenticated | Reverse a stock-in record with required `reason`, deducting `quantityAdded` and restoring `previousUnitCost` (`409 INSUFFICIENT_STOCK_FOR_REVERSAL` if stock was already consumed). |
+| `POST` | `/api/audits/:id/reverse` | Authenticated | Reverse a ground-stock audit with required `reason`, restoring pre-audit stock adjustments. |
+

@@ -9,22 +9,21 @@ import {
 } from 'lucide-react';
 import { useErpStore } from '../context/ErpContext';
 import { round2 } from '../domain/inventoryEngine';
-import { formatETB, formatQuantity } from '../i18n/translations';
+import {
+  formatETB,
+  formatQuantity,
+  getCategoryLabel,
+} from '../i18n/translations';
 import {
   ALLOWED_CATEGORIES,
-  MaterialCategory,
   SaleTransaction,
   StockAuditRecord,
   StockInRecord,
 } from '../types/erp';
+import { ConfirmDialog } from './ConfirmDialog';
 
 type SubViewMode = 'ground-audit' | 'history-ledger';
 type LedgerFilterType = 'all' | 'sales' | 'stock-in' | 'audits';
-
-const CATEGORY_TABS: readonly (MaterialCategory | 'all')[] = [
-  'all',
-  ...ALLOWED_CATEGORIES,
-];
 
 interface UnifiedLedgerItem {
   id: string;
@@ -36,29 +35,49 @@ interface UnifiedLedgerItem {
 }
 
 export const AuditAndLogView: React.FC = () => {
-  const { state, t, submitStockAudit } = useErpStore();
-  const { materials, sales, stockIns, audits } = state;
+  const {
+    state,
+    t,
+    submitStockAudit,
+    reverseSale,
+    reverseStockIn,
+    reverseAudit,
+  } = useErpStore();
+  const { materials, sales, stockIns, audits, categories } = state;
 
   const [subView, setSubView] = useState<SubViewMode>('ground-audit');
 
   // SCR-06: Ground-Stock Audit Worksheet State
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<
-    MaterialCategory | 'all'
-  >('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [auditNote, setAuditNote] = useState<string>('');
   const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>(
     {}
   );
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // SCR-07: History Ledger Filter State
+  // SCR-07: History Ledger Filter & Reversal Modal State
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilterType>('all');
   const [ledgerSearch, setLedgerSearch] = useState<string>('');
+  const [reversalTarget, setReversalTarget] =
+    useState<UnifiedLedgerItem | null>(null);
+
+  const categoryTabs = useMemo(() => {
+    const ids =
+      categories && categories.length > 0
+        ? categories.map((c) => c.id)
+        : [...ALLOWED_CATEGORIES];
+    return ['all', ...ids];
+  }, [categories]);
+
+  const activeMaterials = useMemo(
+    () => materials.filter((m) => !m.isArchived),
+    [materials]
+  );
 
   const filteredMaterials = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return materials.filter((item) => {
+    return activeMaterials.filter((item) => {
       if (selectedCategory !== 'all' && item.category !== selectedCategory) {
         return false;
       }
@@ -66,19 +85,21 @@ export const AuditAndLogView: React.FC = () => {
       return (
         item.name.toLowerCase().includes(query) ||
         item.specs.toLowerCase().includes(query) ||
-        t.categories[item.category].toLowerCase().includes(query)
+        getCategoryLabel(t, item.category, categories)
+          .toLowerCase()
+          .includes(query)
       );
     });
-  }, [materials, selectedCategory, searchQuery, t.categories]);
+  }, [activeMaterials, selectedCategory, searchQuery, t, categories]);
 
-  // Evaluate all entered counts across the entire catalog (BR-008)
+  // Evaluate all entered counts across the active catalog (BR-008)
   const auditEvaluation = useMemo(() => {
     let countedCount = 0;
     let varianceCount = 0;
     let hasInvalidEntry = false;
     const validItems: Array<{ materialId: string; physicalCount: number }> = [];
 
-    for (const mat of materials) {
+    for (const mat of activeMaterials) {
       const raw = physicalCounts[mat.id];
       if (raw === undefined || raw.trim() === '') {
         continue;
@@ -108,7 +129,7 @@ export const AuditAndLogView: React.FC = () => {
       canCommit:
         validItems.length > 0 && !hasInvalidEntry && !isSubmitting,
     };
-  }, [materials, physicalCounts, isSubmitting]);
+  }, [activeMaterials, physicalCounts, isSubmitting]);
 
   const handleCountChange = (materialId: string, value: string) => {
     setPhysicalCounts((prev) => ({
@@ -182,11 +203,15 @@ export const AuditAndLogView: React.FC = () => {
     const filtered = query
       ? list.filter((entry) => {
           if (entry.sale) {
-            const inNote = entry.sale.customerNote.toLowerCase().includes(query);
+            const inNote = entry.sale.customerNote
+              .toLowerCase()
+              .includes(query);
             const inItems = entry.sale.items.some((i) =>
               i.materialName.toLowerCase().includes(query)
             );
-            return inNote || inItems || entry.sale.id.toLowerCase().includes(query);
+            return (
+              inNote || inItems || entry.sale.id.toLowerCase().includes(query)
+            );
           }
           if (entry.stockIn) {
             return (
@@ -200,7 +225,9 @@ export const AuditAndLogView: React.FC = () => {
             const inAdj = entry.audit.adjustments.some((adj) =>
               adj.materialName.toLowerCase().includes(query)
             );
-            return inNote || inAdj || entry.audit.id.toLowerCase().includes(query);
+            return (
+              inNote || inAdj || entry.audit.id.toLowerCase().includes(query)
+            );
           }
           return false;
         })
@@ -268,7 +295,6 @@ export const AuditAndLogView: React.FC = () => {
          * SCR-06: Physical Ground-Stock Audit & Reconciliation Worksheet
          * ==================================================================== */
         <form onSubmit={handleCommitAudit} className="space-y-5" noValidate>
-          {/* Audit Control Bar: Search, Category Filter, Audit Note, & Live Counters */}
           <section
             aria-label={t.auditLog.tabGroundAudit}
             className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg p-4 space-y-4"
@@ -308,8 +334,12 @@ export const AuditAndLogView: React.FC = () => {
                 aria-label={t.catalog.fieldCategoryLabel}
                 className="flex flex-wrap items-center gap-1 p-1 bg-[#ECEAE3] rounded-md"
               >
-                {CATEGORY_TABS.map((cat) => {
+                {categoryTabs.map((cat) => {
                   const isActive = selectedCategory === cat;
+                  const label =
+                    cat === 'all'
+                      ? t.categories.all
+                      : getCategoryLabel(t, cat, categories);
                   return (
                     <button
                       key={cat}
@@ -322,7 +352,7 @@ export const AuditAndLogView: React.FC = () => {
                           : 'text-[#4A5056] hover:text-[#14171A]'
                       }`}
                     >
-                      {t.categories[cat]}
+                      {label}
                     </button>
                   );
                 })}
@@ -386,7 +416,6 @@ export const AuditAndLogView: React.FC = () => {
                           : 'hover:bg-[#F6F5F1]/40'
                     }`}
                   >
-                    {/* Left: Material Identity & Expected App Stock */}
                     <div className="min-w-0 space-y-1 flex-1">
                       <div className="flex flex-wrap items-baseline gap-2">
                         <h3 className="text-sm sm:text-base font-semibold text-[#14171A]">
@@ -396,7 +425,7 @@ export const AuditAndLogView: React.FC = () => {
                           ·
                         </span>
                         <span className="text-xs text-[#4A5056]">
-                          {t.categories[mat.category]}
+                          {getCategoryLabel(t, mat.category, categories)}
                         </span>
                       </div>
                       <p className="text-xs text-[#6E757C]">
@@ -407,9 +436,7 @@ export const AuditAndLogView: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* Right: Expected Stock, Physical Ground Count Input, & Live Variance */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 items-center lg:w-[620px] shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[#ECEAE3]">
-                      {/* 1. Expected App Stock */}
                       <div className="sm:text-right font-mono-tabular">
                         <p className="text-[11px] text-[#6E757C]">
                           {t.auditLog.expectedStockCol}
@@ -419,7 +446,6 @@ export const AuditAndLogView: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* 2. Physical Ground Count Input + 1-Tap Match (=) */}
                       <div>
                         <label
                           htmlFor={`audit-count-${mat.id}`}
@@ -463,7 +489,6 @@ export const AuditAndLogView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* 3. Live Variance Display (FR-018) */}
                       <div className="sm:text-right font-mono-tabular">
                         <p className="text-[11px] text-[#6E757C]">
                           {t.auditLog.varianceCol}
@@ -515,13 +540,12 @@ export const AuditAndLogView: React.FC = () => {
               })}
             </div>
 
-            {/* Audit Commit Footer */}
             <div className="p-4 sm:px-5 bg-[#ECEAE3] border-t border-[#DCD9D0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="text-xs font-mono-tabular text-[#14171A]">
                 <span>
                   {t.auditLog.countedSummaryLabel}:{' '}
                   <strong>{auditEvaluation.countedCount}</strong> /{' '}
-                  {materials.length}
+                  {activeMaterials.length}
                 </span>
                 <span aria-hidden="true"> · </span>
                 <span>
@@ -560,10 +584,9 @@ export const AuditAndLogView: React.FC = () => {
         </form>
       ) : (
         /* ====================================================================
-         * SCR-07: Immutable Transaction & Audit History Ledger (FR-021, BR-007)
+         * SCR-07: Immutable Transaction & Audit History Ledger + Reversal Workflows
          * ==================================================================== */
         <div className="space-y-4">
-          {/* Filter & Search Bar */}
           <section
             aria-label={t.auditLog.tabHistoryLedger}
             className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -575,8 +598,14 @@ export const AuditAndLogView: React.FC = () => {
             >
               {(
                 [
-                  { id: 'all', label: `${t.auditLog.filterAll} (${totalLedgerCount})` },
-                  { id: 'sales', label: `${t.auditLog.filterSales} (${sales.length})` },
+                  {
+                    id: 'all',
+                    label: `${t.auditLog.filterAll} (${totalLedgerCount})`,
+                  },
+                  {
+                    id: 'sales',
+                    label: `${t.auditLog.filterSales} (${sales.length})`,
+                  },
                   {
                     id: 'stock-in',
                     label: `${t.auditLog.filterStockIn} (${stockIns.length})`,
@@ -618,7 +647,6 @@ export const AuditAndLogView: React.FC = () => {
             </div>
           </section>
 
-          {/* Chronological Ledger Entries */}
           <section className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg overflow-hidden">
             {unifiedLedger.length === 0 ? (
               <div className="p-8 text-center space-y-2">
@@ -635,12 +663,22 @@ export const AuditAndLogView: React.FC = () => {
                   if (entry.kind === 'sale' && entry.sale) {
                     const sale = entry.sale;
                     return (
-                      <div key={sale.id} className="p-4 sm:px-5 space-y-2.5">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <div className="flex items-baseline gap-2">
+                      <div
+                        key={sale.id}
+                        className={`p-4 sm:px-5 space-y-2.5 ${
+                          sale.isReversed ? 'bg-[#FEF2F2]/30 opacity-85' : ''
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-baseline gap-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-[#B84A14]">
                               {t.auditLog.saleBadgeLabel}
                             </span>
+                            {sale.isReversed && (
+                              <span className="text-xs font-bold uppercase text-[#B91C1C]">
+                                · REVERSED
+                              </span>
+                            )}
                             <span aria-hidden="true" className="text-[#6E757C]">
                               ·
                             </span>
@@ -654,10 +692,31 @@ export const AuditAndLogView: React.FC = () => {
                               {sale.customerNote || t.auditLog.saleNoteFallback}
                             </span>
                           </div>
-                          <span className="text-xs font-mono-tabular text-[#6E757C]">
-                            {new Date(sale.createdAt).toLocaleString()}
-                          </span>
+
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono-tabular text-[#6E757C]">
+                              {new Date(sale.createdAt).toLocaleString()}
+                            </span>
+                            {!sale.isReversed && (
+                              <button
+                                type="button"
+                                onClick={() => setReversalTarget(entry)}
+                                aria-label={`Reverse sale ${sale.id}`}
+                                className="min-h-[30px] px-2.5 py-1 text-xs font-semibold rounded border border-[#DCD9D0] bg-[#FFFFFF] text-[#B91C1C] hover:bg-[#FEF2F2] flex items-center gap-1"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>Reverse Sale</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {sale.isReversed && (
+                          <p className="text-xs text-[#B91C1C]">
+                            Reversed by {sale.reversedBy || 'admin'} · Reason:{' '}
+                            {sale.reversalReason}
+                          </p>
+                        )}
 
                         <div className="divide-y divide-[#ECEAE3] bg-[#F6F5F1] border border-[#DCD9D0] rounded p-2.5 space-y-1.5">
                           {sale.items.map((line) => (
@@ -683,13 +742,25 @@ export const AuditAndLogView: React.FC = () => {
                         <div className="flex items-center justify-end gap-5 text-xs font-mono-tabular">
                           <span>
                             {t.pos.totalRevenueLabel}:{' '}
-                            <strong className="text-[#14171A]">
+                            <strong
+                              className={
+                                sale.isReversed
+                                  ? 'text-[#B91C1C] line-through'
+                                  : 'text-[#14171A]'
+                              }
+                            >
                               {formatETB(sale.totalRevenue)}
                             </strong>
                           </span>
                           <span className="text-[#166534]">
                             {t.pos.estimatedProfitLabel}:{' '}
-                            <strong>{formatETB(sale.totalProfit)}</strong>
+                            <strong
+                              className={
+                                sale.isReversed ? 'line-through' : undefined
+                              }
+                            >
+                              {formatETB(sale.totalProfit)}
+                            </strong>
                           </span>
                         </div>
                       </div>
@@ -699,12 +770,22 @@ export const AuditAndLogView: React.FC = () => {
                   if (entry.kind === 'stock-in' && entry.stockIn) {
                     const st = entry.stockIn;
                     return (
-                      <div key={st.id} className="p-4 sm:px-5 space-y-2">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <div className="flex items-baseline gap-2">
+                      <div
+                        key={st.id}
+                        className={`p-4 sm:px-5 space-y-2 ${
+                          st.isReversed ? 'bg-[#FEF2F2]/30 opacity-85' : ''
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-baseline gap-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-[#166534]">
                               {t.auditLog.stockInBadgeLabel}
                             </span>
+                            {st.isReversed && (
+                              <span className="text-xs font-bold uppercase text-[#B91C1C]">
+                                · REVERSED
+                              </span>
+                            )}
                             <span aria-hidden="true" className="text-[#6E757C]">
                               ·
                             </span>
@@ -718,13 +799,40 @@ export const AuditAndLogView: React.FC = () => {
                               {st.supplierNote || t.stockIn.supplierNoteFallback}
                             </span>
                           </div>
-                          <span className="text-xs font-mono-tabular text-[#6E757C]">
-                            {new Date(st.createdAt).toLocaleString()}
-                          </span>
+
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono-tabular text-[#6E757C]">
+                              {new Date(st.createdAt).toLocaleString()}
+                            </span>
+                            {!st.isReversed && (
+                              <button
+                                type="button"
+                                onClick={() => setReversalTarget(entry)}
+                                aria-label={`Reverse stock-in ${st.id}`}
+                                className="min-h-[30px] px-2.5 py-1 text-xs font-semibold rounded border border-[#DCD9D0] bg-[#FFFFFF] text-[#B91C1C] hover:bg-[#FEF2F2] flex items-center gap-1"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>Reverse Stock-In</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
+                        {st.isReversed && (
+                          <p className="text-xs text-[#B91C1C]">
+                            Reversed by {st.reversedBy || 'admin'} · Reason:{' '}
+                            {st.reversalReason}
+                          </p>
+                        )}
+
                         <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono-tabular bg-[#F6F5F1] border border-[#DCD9D0] rounded p-2.5">
-                          <span className="font-bold text-[#166534]">
+                          <span
+                            className={`font-bold ${
+                              st.isReversed
+                                ? 'text-[#B91C1C] line-through'
+                                : 'text-[#166534]'
+                            }`}
+                          >
                             +{formatQuantity(st.quantityAdded)} {t.units[st.unit]}
                           </span>
                           <span>
@@ -750,12 +858,22 @@ export const AuditAndLogView: React.FC = () => {
                   if (entry.kind === 'audit' && entry.audit) {
                     const audit = entry.audit;
                     return (
-                      <div key={audit.id} className="p-4 sm:px-5 space-y-2.5">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <div className="flex items-baseline gap-2">
+                      <div
+                        key={audit.id}
+                        className={`p-4 sm:px-5 space-y-2.5 ${
+                          audit.isReversed ? 'bg-[#FEF2F2]/30 opacity-85' : ''
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-baseline gap-2">
                             <span className="text-xs font-bold uppercase tracking-wider text-[#9A3412]">
                               {t.auditLog.auditBadgeLabel}
                             </span>
+                            {audit.isReversed && (
+                              <span className="text-xs font-bold uppercase text-[#B91C1C]">
+                                · REVERSED
+                              </span>
+                            )}
                             <span aria-hidden="true" className="text-[#6E757C]">
                               ·
                             </span>
@@ -769,10 +887,31 @@ export const AuditAndLogView: React.FC = () => {
                               {audit.note || t.auditLog.auditNoteFallback}
                             </span>
                           </div>
-                          <span className="text-xs font-mono-tabular text-[#6E757C]">
-                            {new Date(audit.createdAt).toLocaleString()}
-                          </span>
+
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono-tabular text-[#6E757C]">
+                              {new Date(audit.createdAt).toLocaleString()}
+                            </span>
+                            {!audit.isReversed && (
+                              <button
+                                type="button"
+                                onClick={() => setReversalTarget(entry)}
+                                aria-label={`Reverse audit ${audit.id}`}
+                                className="min-h-[30px] px-2.5 py-1 text-xs font-semibold rounded border border-[#DCD9D0] bg-[#FFFFFF] text-[#B91C1C] hover:bg-[#FEF2F2] flex items-center gap-1"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>Reverse Audit</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {audit.isReversed && (
+                          <p className="text-xs text-[#B91C1C]">
+                            Reversed by {audit.reversedBy || 'admin'} · Reason:{' '}
+                            {audit.reversalReason}
+                          </p>
+                        )}
 
                         <div className="divide-y divide-[#ECEAE3] bg-[#F6F5F1] border border-[#DCD9D0] rounded p-2.5 space-y-1.5">
                           {audit.adjustments.map((adj) => (
@@ -822,6 +961,51 @@ export const AuditAndLogView: React.FC = () => {
           </section>
         </div>
       )}
+
+      {/* Unified Reversal Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={reversalTarget !== null}
+        title={
+          reversalTarget?.kind === 'sale'
+            ? 'Reverse Completed Sale Transaction'
+            : reversalTarget?.kind === 'stock-in'
+              ? 'Reverse Stock-In Delivery'
+              : 'Reverse Ground-Stock Audit'
+        }
+        recordName={
+          reversalTarget?.sale
+            ? `${reversalTarget.sale.id} (${formatETB(
+                reversalTarget.sale.totalRevenue
+              )})`
+            : reversalTarget?.stockIn
+              ? `${reversalTarget.stockIn.materialName} (+${formatQuantity(
+                  reversalTarget.stockIn.quantityAdded
+                )} ${t.units[reversalTarget.stockIn.unit]})`
+              : reversalTarget?.audit
+                ? `${reversalTarget.audit.id} (${reversalTarget.audit.adjustments.length} item adjustments)`
+                : ''
+        }
+        description="Permanent deletion of completed transactions is prohibited to preserve audit trail integrity. Confirming this reversal will atomically restore corresponding ground stock balances and record your reversal reason."
+        confirmLabel="Confirm Reversal"
+        variant="danger"
+        requireReason
+        reasonLabel="Reversal Reason *"
+        reasonPlaceholder="Enter the reason for reversing this record..."
+        onConfirm={async (reason) => {
+          if (!reversalTarget) return;
+          if (reversalTarget.kind === 'sale' && reversalTarget.sale) {
+            await reverseSale(reversalTarget.sale.id, reason);
+          } else if (
+            reversalTarget.kind === 'stock-in' &&
+            reversalTarget.stockIn
+          ) {
+            await reverseStockIn(reversalTarget.stockIn.id, reason);
+          } else if (reversalTarget.kind === 'audit' && reversalTarget.audit) {
+            await reverseAudit(reversalTarget.audit.id, reason);
+          }
+        }}
+        onClose={() => setReversalTarget(null)}
+      />
     </div>
   );
 };

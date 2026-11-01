@@ -293,3 +293,22 @@ CREATE INDEX IF NOT EXISTS idx_audit_items_material_id ON audit_line_items(mater
      1. For each audited item, compute `variance = round(physicalCount - currentStock, 2)`.
      2. Set `materials.current_stock = physicalCount` and update `materials.updated_at`.
      3. Insert the `audits` record and its `audit_line_items`, and commit.
+
+---
+
+## 6. Authentication, Categories, Archiving & Reversal Extensions
+
+1. **`users` Collection / Table:**
+   - `id` (`TEXT PRIMARY KEY`), `username` (`TEXT UNIQUE NOT NULL`), `email` (`TEXT`), `displayName` (`TEXT NOT NULL`), `passwordHash` (`TEXT NOT NULL` — `scrypt$<salt>$<derivedKey>`), `role` (`'admin' | 'staff'`), `isActive` (`BOOLEAN NOT NULL DEFAULT 1`), `createdAt`, `updatedAt`.
+   - Never exposed with `passwordHash` in `/api/state` or `/api/users` responses (`PublicUser` projection).
+   - **Last Active Admin Invariant:** The system strictly prohibits deleting or deactivating the last active `admin` user (`409 LAST_ADMIN_PROTECTION`).
+2. **`categories` Collection / Table:**
+   - `id` (`TEXT PRIMARY KEY`), `label` (`TEXT NOT NULL`), `isSystem` (`BOOLEAN`), `createdAt`.
+   - Deletion (`DELETE /api/categories/:id`) is allowed only when zero materials reference `category == id` (`409 CATEGORY_IN_USE` otherwise).
+3. **`materials` Archive Extension:**
+   - `isArchived` (`BOOLEAN DEFAULT 0`), `archivedAt` (`TEXT`).
+   - Materials with zero transaction history (`sales`, `stockIns`, `audits`) may be permanently deleted (`DELETE /api/materials/:id`). Materials referenced in any historical transaction cannot be permanently deleted (`409 MATERIAL_HAS_HISTORY`) and must be archived (`POST /api/materials/:id/archive`).
+4. **Ledger Reversal Metadata (`sales`, `stock_ins`, `audits`):**
+   - Completed ledger transactions are never permanently deleted (`409 DELETION_PROHIBITED`).
+   - Each transaction supports a one-time atomic reversal (`isReversed: true`, `reversedAt`, `reversedBy`, `reversalReason`, and `previousUnitCost` on `stock_ins`), restoring inventory balances accurately while preserving the immutable original record.
+

@@ -3,15 +3,32 @@ import assert from 'node:assert/strict';
 import {
   calculateStoreSummary,
   calculateWeightedAverageCost,
+  createCategory,
   createInitialErpState,
+  deleteCategory,
+  deleteMaterial,
   recordMultiItemSale,
   recordStockAudit,
   recordStockIn,
   registerMaterial,
+  reverseSaleTransaction,
+  reverseStockAuditRecord,
+  reverseStockInRecord,
   round2,
+  setMaterialArchivedStatus,
   updateMaterialMetadata,
   validateCategoryAndUnit,
 } from './inventoryEngine';
+import {
+  ActiveSession,
+  authenticateUser,
+  createAuthorizedUser,
+  deleteAuthorizedUser,
+  ensureInitialAdminProvisioned,
+  hashPassword,
+  setAuthorizedUserStatus,
+  verifyPassword,
+} from './authEngine';
 import { MaterialCategory, MaterialUnit } from '../types/erp';
 import { AppDomainError } from '../utils/errors';
 
@@ -441,4 +458,223 @@ test('VAL-003, VAL-006 & VAL-007: recordStockAudit rejects empty batch, negative
       err instanceof AppDomainError && err.code === 'MATERIAL_NOT_FOUND'
   );
 });
+
+test('FEATURE 1: AuthEngine hashes passwords securely, authenticates pre-registered users, and prevents last-admin deletion/deactivation', () => {
+  const hash = hashPassword('StrongPass#2026');
+  assert.ok(!hash.includes('StrongPass#2026'));
+  assert.equal(verifyPassword('StrongPass#2026', hash), true);
+  assert.equal(verifyPassword('WrongPass', hash), false);
+
+  const state = createInitialErpState();
+  const sessions = new Map<string, ActiveSession>();
+  ensureInitialAdminProvisioned(state);
+  assert.equal(state.users!.length, 1);
+  assert.equal(state.users![0].role, 'admin');
+  assert.equal(state.users![0].isActive, true);
+  const adminActor = state.users![0];
+
+  // Successful login
+  const defaultPassword = process.env.ERP_ADMIN_PASSWORD?.trim() || 'Admin@12345';
+  const defaultUsername = process.env.ERP_ADMIN_USERNAME?.trim() || 'admin';
+  const authed = authenticateUser(state, sessions, {
+    username: defaultUsername,
+    password: defaultPassword,
+  });
+  assert.equal(authed.user.username, defaultUsername);
+
+  // Incorrect username
+  assert.throws(
+    () => authenticateUser(state, sessions, { username: 'nonexistent', password: defaultPassword }),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'INVALID_CREDENTIALS'
+  );
+
+  // Incorrect password
+  assert.throws(
+    () => authenticateUser(state, sessions, { username: defaultUsername, password: 'WrongPassword!' }),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'INVALID_CREDENTIALS'
+  );
+
+  // Empty credentials
+  assert.throws(
+    () => authenticateUser(state, sessions, { username: '   ', password: '' }),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'VALIDATION_ERROR'
+  );
+
+  // Last active admin protection: cannot deactivate or delete the sole active admin
+  assert.throws(
+    () => setAuthorizedUserStatus(state, sessions, adminActor, adminActor.id, false),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'LAST_ADMIN_PROTECTION'
+  );
+  assert.throws(
+    () => deleteAuthorizedUser(state, sessions, adminActor, adminActor.id),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'LAST_ADMIN_PROTECTION'
+  );
+
+  // Create a staff account, deactivate it, and verify login is blocked
+  const staff = createAuthorizedUser(state, adminActor, {
+    username: 'cashier1',
+    displayName: 'Store Cashier',
+    password: 'CashierPassword123',
+    role: 'staff',
+  });
+  assert.equal(state.users!.length, 2);
+
+  setAuthorizedUserStatus(state, sessions, adminActor, staff.id, false);
+  assert.throws(
+    () => authenticateUser(state, sessions, { username: 'cashier1', password: 'CashierPassword123' }),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'ACCOUNT_DEACTIVATED'
+  );
+
+  // Deleting staff user succeeds
+  const deletedId = deleteAuthorizedUser(state, sessions, adminActor, staff.id);
+  assert.equal(deletedId, staff.id);
+  assert.equal(state.users!.length, 1);
+});
+
+test('FEATURE 2A: deleteMaterial deletes unused material, blocks deleting material with history, and supports archiving', () => {
+  const state = createInitialErpState();
+  const unusedMat = state.materials.find((m) => m.id === 'mat_wire_bind')!;
+  const usedMat = state.materials.find((m) => m.id === 'mat_cement_opc')!;
+
+  // Delete unused material succeeds
+  const deletedId = deleteMaterial(state, unusedMat.id);
+  assert.equal(deletedId, unusedMat.id);
+  assert.equal(state.materials.some((m) => m.id === unusedMat.id), false);
+
+  // Record a sale on usedMat so it has transaction history
+  recordMultiItemSale(state, {
+    items: [{ materialId: usedMat.id, quantity: 5, unitSellingPrice: 1300 }],
+  });
+
+  // Attempting to delete material with history throws MATERIAL_HAS_HISTORY
+  assert.throws(
+    () => deleteMaterial(state, usedMat.id),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'MATERIAL_HAS_HISTORY'
+  );
+
+  // Archiving material with history succeeds and excludes it from new transactions
+  const archived = setMaterialArchivedStatus(state, usedMat.id, true);
+  assert.equal(archived.isArchived, true);
+
+  assert.throws(
+    () =>
+      recordMultiItemSale(state, {
+        items: [{ materialId: usedMat.id, quantity: 1, unitSellingPrice: 1300 }],
+      }),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'MATERIAL_ARCHIVED'
+  );
+});
+
+test('FEATURE 2B: createCategory and deleteCategory allow deleting unused categories and block deleting categories in use', () => {
+  const state = createInitialErpState();
+
+  const customCat = createCategory(state, { name: 'Plumbing & PVC Pipes' });
+  assert.equal(customCat.id, 'plumbing_pvc_pipes');
+
+  // Unused category can be deleted
+  const removedId = deleteCategory(state, customCat.id);
+  assert.equal(removedId, customCat.id);
+
+  // Category in use by existing materials cannot be deleted
+  assert.throws(
+    () => deleteCategory(state, MaterialCategory.CEMENT),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'CATEGORY_IN_USE'
+  );
+});
+
+test('FEATURE 2C, 2D, 2E: Reversing Sales, Stock-In, and Audits restores stock accurately and blocks duplicate reversals', () => {
+  const state = createInitialErpState();
+  const cement = state.materials.find((m) => m.id === 'mat_cement_opc')!;
+  const initialStock = cement.currentStock; // 180
+  const initialCost = cement.unitCost; // 1120
+
+  // 1. Sale Reversal
+  const sale = recordMultiItemSale(
+    state,
+    {
+      items: [{ materialId: cement.id, quantity: 10, unitSellingPrice: 1300 }],
+      customerNote: 'Walk-in buyer',
+    },
+    '2026-10-31T10:00:00.000Z',
+    'admin'
+  );
+  assert.equal(cement.currentStock, initialStock - 10);
+  assert.equal(state.summary.totalRevenue, 13000);
+
+  const reversedSale = reverseSaleTransaction(
+    state,
+    sale.id,
+    'Customer returned unopened bags',
+    'admin'
+  );
+  assert.equal(reversedSale.isReversed, true);
+  assert.equal(reversedSale.reversedBy, 'admin');
+  assert.equal(reversedSale.reversalReason, 'Customer returned unopened bags');
+  assert.equal(cement.currentStock, initialStock);
+  assert.equal(state.summary.totalRevenue, 0);
+
+  // Duplicate sale reversal blocked
+  assert.throws(
+    () => reverseSaleTransaction(state, sale.id, 'Second attempt', 'admin'),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'ALREADY_REVERSED'
+  );
+
+  // 2. Stock-In Reversal
+  const { stockIn } = recordStockIn(
+    state,
+    {
+      materialId: cement.id,
+      quantityAdded: 20,
+      unitPurchaseCost: 1220,
+    },
+    '2026-10-31T11:00:00.000Z',
+    'admin'
+  );
+  assert.equal(cement.currentStock, initialStock + 20);
+  assert.notEqual(cement.unitCost, initialCost);
+
+  const { stockIn: reversedStockIn } = reverseStockInRecord(
+    state,
+    stockIn.id,
+    'Wrong supplier batch logged',
+    'admin'
+  );
+  assert.equal(reversedStockIn.isReversed, true);
+  assert.equal(cement.currentStock, initialStock);
+  assert.equal(cement.unitCost, initialCost);
+
+  // Duplicate stock-in reversal blocked
+  assert.throws(
+    () => reverseStockInRecord(state, stockIn.id, 'Duplicate', 'admin'),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'ALREADY_REVERSED'
+  );
+
+  // 3. Stock Audit Reversal
+  const audit = recordStockAudit(
+    state,
+    {
+      items: [{ materialId: cement.id, physicalCount: initialStock - 5 }],
+      note: 'Miscounted pallet',
+    },
+    '2026-10-31T12:00:00.000Z',
+    'admin'
+  );
+  assert.equal(cement.currentStock, initialStock - 5);
+
+  const reversedAudit = reverseStockAuditRecord(
+    state,
+    audit.id,
+    'Found missing 5 bags in back storage',
+    'admin'
+  );
+  assert.equal(reversedAudit.isReversed, true);
+  assert.equal(cement.currentStock, initialStock);
+
+  // Duplicate audit reversal blocked
+  assert.throws(
+    () => reverseStockAuditRecord(state, audit.id, 'Duplicate', 'admin'),
+    (err: unknown) => err instanceof AppDomainError && err.code === 'ALREADY_REVERSED'
+  );
+});
+
 

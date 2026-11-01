@@ -47,16 +47,81 @@ export const ALLOWED_UNITS: readonly MaterialUnit[] = [
   MaterialUnit.LITERS,
 ];
 
+export interface CategoryItem {
+  id: string;
+  name: string;
+  isSystemDefault?: boolean;
+  createdAt: string;
+}
+
+export interface CreateCategoryInput {
+  id?: string;
+  name: string;
+}
+
+export interface CategoryMutationResponse {
+  category?: CategoryItem;
+  deletedCategoryId?: string;
+  categories: CategoryItem[];
+}
+
+export type UserRole = 'admin' | 'staff';
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  displayName: string;
+  role: UserRole;
+  passwordHash: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicUser {
+  id: string;
+  username: string;
+  displayName: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoginInput {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: PublicUser;
+}
+
+export interface CreateUserInput {
+  username: string;
+  displayName?: string;
+  password: string;
+  role?: UserRole;
+}
+
+export interface UpdateUserStatusInput {
+  isActive: boolean;
+}
+
 export interface Material {
   id: string;
   name: string;
-  category: MaterialCategory;
+  category: MaterialCategory | string;
   specs: string;
   unit: MaterialUnit;
   currentStock: number;
   minStockLevel: number;
   unitCost: number;
   defaultSellingPrice: number;
+  isArchived?: boolean;
+  archivedAt?: string;
+  archivedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -89,6 +154,16 @@ export interface MaterialMutationResponse {
   summary: StoreSummary;
 }
 
+export interface DeleteMaterialResponse {
+  deletedMaterialId: string;
+  materials: Material[];
+  summary: StoreSummary;
+}
+
+export interface ArchiveMaterialInput {
+  isArchived: boolean;
+}
+
 export interface SaleLineInput {
   materialId: string;
   quantity: number;
@@ -118,10 +193,26 @@ export interface SaleTransaction {
   items: SaleLineItem[];
   totalRevenue: number;
   totalProfit: number;
+  createdBy?: string;
+  isReversed?: boolean;
+  reversedAt?: string;
+  reversedBy?: string;
+  reversalReason?: string;
 }
 
 export interface CreateSaleResponse {
   sale: SaleTransaction;
+  materials: Material[];
+  summary: StoreSummary;
+}
+
+export interface ReverseTransactionInput {
+  reason: string;
+}
+
+export interface ReverseSaleResponse {
+  sale: SaleTransaction;
+  sales: SaleTransaction[];
   materials: Material[];
   summary: StoreSummary;
 }
@@ -149,12 +240,26 @@ export interface StockInRecord {
   totalCost: number;
   previousStock: number;
   newStock: number;
+  previousUnitCost?: number;
   supplierNote: string;
   createdAt: string;
+  createdBy?: string;
+  isReversed?: boolean;
+  reversedAt?: string;
+  reversedBy?: string;
+  reversalReason?: string;
 }
 
 export interface CreateStockInResponse {
   stockIn: StockInRecord;
+  material: Material;
+  materials: Material[];
+  summary: StoreSummary;
+}
+
+export interface ReverseStockInResponse {
+  stockIn: StockInRecord;
+  stockIns: StockInRecord[];
   material: Material;
   materials: Material[];
   summary: StoreSummary;
@@ -185,10 +290,22 @@ export interface StockAuditRecord {
   createdAt: string;
   note: string;
   adjustments: AuditLineItem[];
+  createdBy?: string;
+  isReversed?: boolean;
+  reversedAt?: string;
+  reversedBy?: string;
+  reversalReason?: string;
 }
 
 export interface CreateAuditResponse {
   audit: StockAuditRecord;
+  materials: Material[];
+  summary: StoreSummary;
+}
+
+export interface ReverseAuditResponse {
+  audit: StockAuditRecord;
+  audits: StockAuditRecord[];
   materials: Material[];
   summary: StoreSummary;
 }
@@ -203,9 +320,11 @@ export interface StoreSummary {
 
 export interface ErpState {
   materials: Material[];
+  categories?: CategoryItem[];
   sales: SaleTransaction[];
   stockIns: StockInRecord[];
   audits: StockAuditRecord[];
+  users?: UserAccount[];
   summary: StoreSummary;
 }
 
@@ -214,13 +333,29 @@ export type ErrorCode =
   | 'INSUFFICIENT_STOCK'
   | 'IMMUTABLE_FIELD_VIOLATION'
   | 'MATERIAL_NOT_FOUND'
+  | 'RECORD_NOT_FOUND'
+  | 'UNAUTHORIZED'
+  | 'INVALID_CREDENTIALS'
+  | 'ACCOUNT_DEACTIVATED'
+  | 'FORBIDDEN'
+  | 'MATERIAL_HAS_HISTORY'
+  | 'MATERIAL_ARCHIVED'
+  | 'CATEGORY_IN_USE'
+  | 'ALREADY_REVERSED'
+  | 'INSUFFICIENT_STOCK_FOR_REVERSAL'
+  | 'LAST_ADMIN_PROTECTION'
+  | 'DELETION_PROHIBITED'
+  | 'DUPLICATE_RECORD'
   | 'INTERNAL_ERROR';
 
 export interface ApiErrorDetails {
   materialId?: string;
   materialName?: string;
+  categoryId?: string;
+  recordId?: string;
   requested?: number;
   available?: number;
+  inUseCount?: number;
   unit?: string;
   field?: string;
 }

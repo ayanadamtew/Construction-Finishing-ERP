@@ -7,6 +7,7 @@ import React from 'react';
 import { AuditAndLogView } from './components/AuditAndLogView';
 import { DashboardView } from './components/DashboardView';
 import { Header } from './components/Header';
+import { LoginView } from './components/LoginView';
 import { MaterialsView } from './components/MaterialsView';
 import {
   DesktopNavigationRail,
@@ -18,7 +19,21 @@ import { StockInView } from './components/StockInView';
 import { ErpProvider, useErpStore } from './context/ErpContext';
 
 const ErpWorkspaceShell: React.FC = () => {
-  const { activeTab } = useErpStore();
+  const { activeTab, currentUser, isAuthChecking, t } = useErpStore();
+
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F6F5F1] text-[#14171A] p-6">
+        <p className="text-sm font-medium text-[#4A5056]">
+          {t.shell.loadingState}
+        </p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginView />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F6F5F1] text-[#14171A]">

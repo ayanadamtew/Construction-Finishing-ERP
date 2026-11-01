@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Plus,
+  RotateCcw,
   Search,
   ShoppingCart,
   Trash2,
@@ -10,13 +11,13 @@ import {
 } from 'lucide-react';
 import { useErpStore } from '../context/ErpContext';
 import { round2 } from '../domain/inventoryEngine';
-import { formatETB, formatQuantity } from '../i18n/translations';
-import { ALLOWED_CATEGORIES, MaterialCategory } from '../types/erp';
-
-const CATEGORY_TABS: readonly (MaterialCategory | 'all')[] = [
-  'all',
-  ...ALLOWED_CATEGORIES,
-];
+import {
+  formatETB,
+  formatQuantity,
+  getCategoryLabel,
+} from '../i18n/translations';
+import { ALLOWED_CATEGORIES, SaleTransaction } from '../types/erp';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export const SalesPosView: React.FC = () => {
   const {
@@ -31,21 +32,32 @@ export const SalesPosView: React.FC = () => {
     removeFromPosCart,
     clearPosCart,
     submitPosSale,
+    reverseSale,
     lastCompletedSale,
     clearLastCompletedSale,
   } = useErpStore();
 
-  const { materials } = state;
+  const { materials, categories } = state;
 
   const [pickerSearch, setPickerSearch] = useState<string>('');
-  const [pickerCategory, setPickerCategory] = useState<
-    MaterialCategory | 'all'
-  >('all');
+  const [pickerCategory, setPickerCategory] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [saleToReverse, setSaleToReverse] = useState<SaleTransaction | null>(
+    null
+  );
+
+  const categoryTabs = useMemo(() => {
+    const ids =
+      categories && categories.length > 0
+        ? categories.map((c) => c.id)
+        : [...ALLOWED_CATEGORIES];
+    return ['all', ...ids];
+  }, [categories]);
 
   const filteredPickerMaterials = useMemo(() => {
     const query = pickerSearch.trim().toLowerCase();
     return materials.filter((item) => {
+      if (item.isArchived) return false;
       if (pickerCategory !== 'all' && item.category !== pickerCategory) {
         return false;
       }
@@ -53,16 +65,20 @@ export const SalesPosView: React.FC = () => {
       return (
         item.name.toLowerCase().includes(query) ||
         item.specs.toLowerCase().includes(query) ||
-        t.categories[item.category].toLowerCase().includes(query)
+        getCategoryLabel(t, item.category, categories)
+          .toLowerCase()
+          .includes(query)
       );
     });
-  }, [materials, pickerSearch, pickerCategory, t.categories]);
+  }, [materials, pickerSearch, pickerCategory, t, categories]);
 
   // Enrich each cart line with live material details, subtotal, remaining stock, and validation flags
   const evaluatedCartLines = useMemo(() => {
     return posCart
       .map((draft) => {
-        const material = materials.find((m) => m.id === draft.materialId);
+        const material = materials.find(
+          (m) => m.id === draft.materialId && !m.isArchived
+        );
         if (!material) return null;
 
         const parsedQty = Number(draft.quantityInput);
@@ -154,19 +170,36 @@ export const SalesPosView: React.FC = () => {
         <p className="text-sm text-[#4A5056] mt-0.5">{t.pos.subtitle}</p>
       </div>
 
-      {/* Completed Sale Receipt Card (Success State) */}
+      {/* Completed Sale Receipt Card (Success State + Reversal Workflow) */}
       {lastCompletedSale && (
         <section
           aria-label={t.pos.receiptTitle}
-          className="bg-[#FFFFFF] border border-[#166534]/40 rounded-lg p-4 sm:p-5 space-y-3"
+          className={`bg-[#FFFFFF] border rounded-lg p-4 sm:p-5 space-y-3 ${
+            lastCompletedSale.isReversed
+              ? 'border-[#B91C1C]/40 bg-[#FEF2F2]/30'
+              : 'border-[#166534]/40'
+          }`}
         >
-          <div className="flex items-start justify-between gap-3 border-b border-[#ECEAE3] pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#ECEAE3] pb-3">
             <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-5 h-5 text-[#166534] shrink-0 mt-0.5" />
+              <CheckCircle2
+                className={`w-5 h-5 shrink-0 mt-0.5 ${
+                  lastCompletedSale.isReversed
+                    ? 'text-[#B91C1C]'
+                    : 'text-[#166534]'
+                }`}
+              />
               <div>
-                <h3 className="text-base font-bold text-[#14171A]">
-                  {t.pos.receiptTitle}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-[#14171A]">
+                    {t.pos.receiptTitle}
+                  </h3>
+                  {lastCompletedSale.isReversed && (
+                    <span className="text-xs font-bold uppercase text-[#B91C1C]">
+                      · REVERSED
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-[#4A5056]">
                   {t.pos.receiptSubtitle} ·{' '}
                   <span className="font-mono-tabular">
@@ -175,18 +208,37 @@ export const SalesPosView: React.FC = () => {
                   {lastCompletedSale.customerNote &&
                     ` · ${lastCompletedSale.customerNote}`}
                 </p>
+                {lastCompletedSale.isReversed && (
+                  <p className="text-xs text-[#B91C1C] mt-1">
+                    Reversed by {lastCompletedSale.reversedBy || 'admin'} ·
+                    Reason: {lastCompletedSale.reversalReason}
+                  </p>
+                )}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={clearLastCompletedSale}
-              aria-label={t.pos.dismissReceiptBtn}
-              className="min-h-[34px] px-2.5 py-1 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#4A5056] hover:text-[#14171A] flex items-center gap-1"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span>{t.pos.dismissReceiptBtn}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {!lastCompletedSale.isReversed && (
+                <button
+                  type="button"
+                  onClick={() => setSaleToReverse(lastCompletedSale)}
+                  className="min-h-[34px] px-2.5 py-1 text-xs font-semibold rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#B91C1C] hover:bg-[#FEF2F2] flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reverse Sale</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={clearLastCompletedSale}
+                aria-label={t.pos.dismissReceiptBtn}
+                className="min-h-[34px] px-2.5 py-1 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#4A5056] hover:text-[#14171A] flex items-center gap-1"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>{t.pos.dismissReceiptBtn}</span>
+              </button>
+            </div>
           </div>
 
           <div className="divide-y divide-[#ECEAE3]">
@@ -254,8 +306,12 @@ export const SalesPosView: React.FC = () => {
               aria-label={t.catalog.fieldCategoryLabel}
               className="flex flex-wrap items-center gap-1 p-1 bg-[#ECEAE3] rounded-md"
             >
-              {CATEGORY_TABS.map((cat) => {
+              {categoryTabs.map((cat) => {
                 const isActive = pickerCategory === cat;
+                const label =
+                  cat === 'all'
+                    ? t.categories.all
+                    : getCategoryLabel(t, cat, categories);
                 return (
                   <button
                     key={cat}
@@ -268,7 +324,7 @@ export const SalesPosView: React.FC = () => {
                         : 'text-[#4A5056] hover:text-[#14171A]'
                     }`}
                   >
-                    {t.categories[cat]}
+                    {label}
                   </button>
                 );
               })}
@@ -299,8 +355,8 @@ export const SalesPosView: React.FC = () => {
                           isOutOfStock
                             ? 'text-[#B91C1C] font-semibold'
                             : item.currentStock <= item.minStockLevel
-                            ? 'text-[#9A3412] font-semibold'
-                            : 'text-[#166534] font-semibold'
+                              ? 'text-[#9A3412] font-semibold'
+                              : 'text-[#166534] font-semibold'
                         }
                       >
                         {isOutOfStock
@@ -321,8 +377,8 @@ export const SalesPosView: React.FC = () => {
                       isOutOfStock
                         ? 'bg-[#ECEAE3] text-[#6E757C] cursor-not-allowed'
                         : inCartLine
-                        ? 'bg-[#14171A] text-[#FFFFFF] hover:bg-[#14171A]/90'
-                        : 'bg-[#B84A14] text-[#FFFFFF] hover:bg-[#963B0E]'
+                          ? 'bg-[#14171A] text-[#FFFFFF] hover:bg-[#14171A]/90'
+                          : 'bg-[#B84A14] text-[#FFFFFF] hover:bg-[#963B0E]'
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -404,8 +460,8 @@ export const SalesPosView: React.FC = () => {
                             {material.name}
                           </h4>
                           <p className="text-xs text-[#4A5056] font-mono-tabular">
-                            {t.categories[material.category]} ·{' '}
-                            {t.pos.availableLabel}:{' '}
+                            {getCategoryLabel(t, material.category, categories)}{' '}
+                            · {t.pos.availableLabel}:{' '}
                             {formatQuantity(material.currentStock)}{' '}
                             {t.units[material.unit]} · {t.shell.costCol}:{' '}
                             {formatETB(material.unitCost)}
@@ -584,6 +640,28 @@ export const SalesPosView: React.FC = () => {
           )}
         </section>
       </div>
+
+      {/* Confirm Sale Reversal Dialog */}
+      <ConfirmDialog
+        isOpen={saleToReverse !== null}
+        title="Reverse Completed Sale Transaction"
+        recordName={
+          saleToReverse
+            ? `${saleToReverse.id} (${formatETB(saleToReverse.totalRevenue)})`
+            : ''
+        }
+        description="Completed sales are never permanently deleted. Reversing this sale will restore the sold inventory quantities to ground stock, deduct the sale from active revenue/profit KPIs, and preserve the original record with your reversal reason."
+        confirmLabel="Reverse Sale & Restore Stock"
+        variant="danger"
+        requireReason
+        reasonLabel="Sale Reversal Reason *"
+        reasonPlaceholder="e.g., Customer returned items, wrong quantity entered..."
+        onConfirm={async (reason) => {
+          if (!saleToReverse) return;
+          await reverseSale(saleToReverse.id, reason);
+        }}
+        onClose={() => setSaleToReverse(null)}
+      />
     </div>
   );
 };

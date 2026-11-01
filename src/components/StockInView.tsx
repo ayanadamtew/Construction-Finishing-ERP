@@ -1,8 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowRight, PackagePlus } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowRight,
+  PackagePlus,
+  RotateCcw,
+} from 'lucide-react';
 import { useErpStore } from '../context/ErpContext';
-import { calculateWeightedAverageCost, round2 } from '../domain/inventoryEngine';
-import { formatETB, formatQuantity } from '../i18n/translations';
+import {
+  calculateWeightedAverageCost,
+  round2,
+} from '../domain/inventoryEngine';
+import {
+  formatETB,
+  formatQuantity,
+  getCategoryLabel,
+} from '../i18n/translations';
+import { StockInRecord } from '../types/erp';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export const StockInView: React.FC = () => {
   const {
@@ -11,16 +25,23 @@ export const StockInView: React.FC = () => {
     selectedStockInMaterialId,
     setSelectedStockInMaterialId,
     submitStockIn,
+    reverseStockIn,
   } = useErpStore();
 
-  const { materials, stockIns } = state;
+  const { materials, stockIns, categories } = state;
+
+  const activeMaterials = useMemo(
+    () => materials.filter((m) => !m.isArchived),
+    [materials]
+  );
 
   const activeMaterial = useMemo(() => {
-    if (materials.length === 0) return null;
+    if (activeMaterials.length === 0) return null;
     return (
-      materials.find((m) => m.id === selectedStockInMaterialId) || materials[0]
+      activeMaterials.find((m) => m.id === selectedStockInMaterialId) ||
+      activeMaterials[0]
     );
-  }, [materials, selectedStockInMaterialId]);
+  }, [activeMaterials, selectedStockInMaterialId]);
 
   const [quantityAddedInput, setQuantityAddedInput] = useState<string>('');
   const [unitPurchaseCostInput, setUnitPurchaseCostInput] =
@@ -29,6 +50,9 @@ export const StockInView: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showValidationErrors, setShowValidationErrors] =
     useState<boolean>(false);
+
+  const [stockInToReverse, setStockInToReverse] =
+    useState<StockInRecord | null>(null);
 
   // Sync default unit purchase cost when the selected material changes
   useEffect(() => {
@@ -146,13 +170,17 @@ export const StockInView: React.FC = () => {
             </h3>
             {activeMaterial && (
               <span className="text-xs font-mono-tabular text-[#6E757C]">
-                {t.categories[activeMaterial.category]} ·{' '}
+                {getCategoryLabel(t, activeMaterial.category, categories)} ·{' '}
                 {t.units[activeMaterial.unit]}
               </span>
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4" noValidate>
+          <form
+            onSubmit={handleSubmit}
+            className="p-4 sm:p-5 space-y-4"
+            noValidate
+          >
             {/* Material Selector */}
             <div>
               <label
@@ -167,7 +195,7 @@ export const StockInView: React.FC = () => {
                 onChange={(e) => setSelectedStockInMaterialId(e.target.value)}
                 className="w-full min-h-[44px] px-3 py-2 text-sm bg-[#FFFFFF] border border-[#DCD9D0] rounded-md text-[#14171A] focus:outline-none focus:border-[#B84A14]"
               >
-                {materials.map((mat) => (
+                {activeMaterials.map((mat) => (
                   <option key={mat.id} value={mat.id}>
                     {mat.name} ({formatQuantity(mat.currentStock)}{' '}
                     {t.units[mat.unit]} · {formatETB(mat.unitCost)})
@@ -281,7 +309,7 @@ export const StockInView: React.FC = () => {
               />
             </div>
 
-            {/* Live Calculation Preview Box (#ECEAE3 per UI_UX_SPEC Section 6.5) */}
+            {/* Live Calculation Preview Box */}
             {activeMaterial && (
               <div
                 aria-label={t.stockIn.previewHeading}
@@ -384,13 +412,30 @@ export const StockInView: React.FC = () => {
               {stockIns.map((record) => (
                 <div
                   key={record.id}
-                  className="p-4 sm:px-5 space-y-2 hover:bg-[#F6F5F1]/60 transition-colors"
+                  className={`p-4 sm:px-5 space-y-2 transition-colors ${
+                    record.isReversed
+                      ? 'bg-[#FEF2F2]/40 opacity-80'
+                      : 'hover:bg-[#F6F5F1]/60'
+                  }`}
                 >
                   <div className="flex items-baseline justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-[#14171A]">
-                      {record.materialName}
-                    </h4>
-                    <span className="text-xs font-bold font-mono-tabular text-[#166534]">
+                    <div className="flex items-baseline gap-2">
+                      <h4 className="text-sm font-semibold text-[#14171A]">
+                        {record.materialName}
+                      </h4>
+                      {record.isReversed && (
+                        <span className="text-[11px] font-bold uppercase text-[#B91C1C]">
+                          · REVERSED
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`text-xs font-bold font-mono-tabular ${
+                        record.isReversed
+                          ? 'text-[#B91C1C] line-through'
+                          : 'text-[#166534]'
+                      }`}
+                    >
                       +{formatQuantity(record.quantityAdded)}{' '}
                       {t.units[record.unit]}
                     </span>
@@ -424,20 +469,63 @@ export const StockInView: React.FC = () => {
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-[#6E757C] flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#ECEAE3]">
+                  {record.isReversed && (
+                    <p className="text-[11px] text-[#B91C1C]">
+                      Reversed by {record.reversedBy || 'admin'} · Reason:{' '}
+                      {record.reversalReason}
+                    </p>
+                  )}
+
+                  <div className="text-[11px] text-[#6E757C] flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-[#ECEAE3]">
                     <span>
-                      {record.supplierNote || t.stockIn.supplierNoteFallback}
+                      {record.supplierNote || t.stockIn.supplierNoteFallback} ·{' '}
+                      <span className="font-mono-tabular">
+                        {new Date(record.createdAt).toLocaleString()}
+                      </span>
                     </span>
-                    <span className="font-mono-tabular">
-                      {new Date(record.createdAt).toLocaleString()}
-                    </span>
-                  </p>
+
+                    {!record.isReversed && (
+                      <button
+                        type="button"
+                        onClick={() => setStockInToReverse(record)}
+                        aria-label={`Reverse stock-in ${record.id}`}
+                        className="min-h-[30px] px-2.5 py-1 text-[11px] font-semibold rounded border border-[#DCD9D0] bg-[#FFFFFF] text-[#B91C1C] hover:bg-[#FEF2F2] flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reverse</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </section>
       </div>
+
+      {/* Confirm Stock-In Reversal Dialog */}
+      <ConfirmDialog
+        isOpen={stockInToReverse !== null}
+        title="Reverse Stock-In Delivery"
+        recordName={
+          stockInToReverse
+            ? `${stockInToReverse.materialName} (+${formatQuantity(
+                stockInToReverse.quantityAdded
+              )} ${t.units[stockInToReverse.unit]})`
+            : ''
+        }
+        description="Completed Stock-In deliveries are never silently deleted. Reversing this delivery will deduct the added quantity from ground stock, restore the previous supplier unit cost, and preserve the original record with your reversal reason."
+        confirmLabel="Reverse Stock-In"
+        variant="danger"
+        requireReason
+        reasonLabel="Stock-In Reversal Reason *"
+        reasonPlaceholder="e.g., Duplicate entry, supplier delivery returned..."
+        onConfirm={async (reason) => {
+          if (!stockInToReverse) return;
+          await reverseStockIn(stockInToReverse.id, reason);
+        }}
+        onClose={() => setStockInToReverse(null)}
+      />
     </div>
   );
 };

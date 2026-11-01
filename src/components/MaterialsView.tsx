@@ -1,24 +1,25 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Archive,
+  ArchiveRestore,
   ArrowDownToLine,
   Edit3,
+  FolderCog,
   Plus,
   Search,
   ShoppingCart,
+  Trash2,
 } from 'lucide-react';
 import { useErpStore } from '../context/ErpContext';
-import { formatETB, formatQuantity } from '../i18n/translations';
 import {
-  ALLOWED_CATEGORIES,
-  Material,
-  MaterialCategory,
-} from '../types/erp';
+  formatETB,
+  formatQuantity,
+  getCategoryLabel,
+} from '../i18n/translations';
+import { ALLOWED_CATEGORIES, Material } from '../types/erp';
+import { ConfirmDialog } from './ConfirmDialog';
 import { MaterialFormModal } from './MaterialFormModal';
-
-const CATEGORY_TABS: readonly (MaterialCategory | 'all')[] = [
-  'all',
-  ...ALLOWED_CATEGORIES,
-];
+import { UsersAndCategoriesModal } from './UsersAndCategoriesModal';
 
 export const MaterialsView: React.FC = () => {
   const {
@@ -28,21 +29,48 @@ export const MaterialsView: React.FC = () => {
     setActiveTab,
     addToPosCart,
     openStockInForMaterial,
+    deleteMaterial,
+    setMaterialArchived,
+    hasTransactionsForMaterial,
   } = useErpStore();
-  const { materials } = state;
+  const { materials, categories } = state;
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<
-    MaterialCategory | 'all'
-  >('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [lowStockOnly, setLowStockOnly] = useState<boolean>(false);
+  const [showArchived, setShowArchived] = useState<boolean>(false);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] =
+    useState<boolean>(false);
+
+  // Delete or Archive Confirmation Modal State
+  const [materialToDelete, setMaterialToDelete] = useState<Material | null>(
+    null
+  );
+  const [materialToArchiveToggle, setMaterialToArchiveToggle] =
+    useState<Material | null>(null);
+
+  const categoryTabs = useMemo(() => {
+    const ids =
+      categories && categories.length > 0
+        ? categories.map((c) => c.id)
+        : [...ALLOWED_CATEGORIES];
+    return ['all', ...ids];
+  }, [categories]);
+
+  const archivedCount = useMemo(
+    () => materials.filter((m) => m.isArchived).length,
+    [materials]
+  );
 
   const filteredMaterials = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return materials.filter((item) => {
+      if (!showArchived && item.isArchived) {
+        return false;
+      }
       if (selectedCategory !== 'all' && item.category !== selectedCategory) {
         return false;
       }
@@ -52,10 +80,20 @@ export const MaterialsView: React.FC = () => {
       if (!query) return true;
       const inName = item.name.toLowerCase().includes(query);
       const inSpecs = item.specs.toLowerCase().includes(query);
-      const inCat = t.categories[item.category].toLowerCase().includes(query);
+      const inCat = getCategoryLabel(t, item.category, categories)
+        .toLowerCase()
+        .includes(query);
       return inName || inSpecs || inCat;
     });
-  }, [materials, searchQuery, selectedCategory, lowStockOnly, t.categories]);
+  }, [
+    materials,
+    showArchived,
+    searchQuery,
+    selectedCategory,
+    lowStockOnly,
+    t,
+    categories,
+  ]);
 
   const handleOpenCreateModal = () => {
     setEditingMaterial(null);
@@ -71,11 +109,12 @@ export const MaterialsView: React.FC = () => {
     setSearchQuery('');
     setSelectedCategory('all');
     setLowStockOnly(false);
+    setShowArchived(false);
   };
 
   return (
     <div className="space-y-5">
-      {/* Top Section Header & Primary Action */}
+      {/* Top Section Header & Primary Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#DCD9D0] pb-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-[#14171A]">
@@ -84,14 +123,25 @@ export const MaterialsView: React.FC = () => {
           <p className="text-sm text-[#4A5056] mt-0.5">{t.catalog.subtitle}</p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenCreateModal}
-          className="min-h-[44px] px-4 py-2.5 text-sm font-semibold rounded-md bg-[#B84A14] text-[#FFFFFF] hover:bg-[#963B0E] transition-colors flex items-center justify-center gap-2 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t.catalog.registerMaterialBtn}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsCategoryModalOpen(true)}
+            className="min-h-[44px] px-3.5 py-2 text-xs font-semibold rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] transition-colors flex items-center gap-1.5"
+          >
+            <FolderCog className="w-4 h-4 text-[#4A5056]" />
+            <span>Categories</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="min-h-[44px] px-4 py-2.5 text-sm font-semibold rounded-md bg-[#B84A14] text-[#FFFFFF] hover:bg-[#963B0E] transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t.catalog.registerMaterialBtn}</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Interactive Filter Control Bar (FR-005) */}
@@ -112,18 +162,34 @@ export const MaterialsView: React.FC = () => {
             />
           </div>
 
-          <button
-            type="button"
-            aria-pressed={lowStockOnly}
-            onClick={() => setLowStockOnly((prev) => !prev)}
-            className={`min-h-[44px] px-4 py-2 text-xs font-semibold rounded-md border transition-colors shrink-0 ${
-              lowStockOnly
-                ? 'bg-[#FFF7ED] border-[#9A3412] text-[#9A3412]'
-                : 'bg-[#FFFFFF] border-[#DCD9D0] text-[#4A5056] hover:bg-[#F6F5F1] hover:text-[#14171A]'
-            }`}
-          >
-            {t.catalog.lowStockOnlyToggle} ({state.summary.lowStockCount})
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              aria-pressed={lowStockOnly}
+              onClick={() => setLowStockOnly((prev) => !prev)}
+              className={`min-h-[44px] px-3.5 py-2 text-xs font-semibold rounded-md border transition-colors ${
+                lowStockOnly
+                  ? 'bg-[#FFF7ED] border-[#9A3412] text-[#9A3412]'
+                  : 'bg-[#FFFFFF] border-[#DCD9D0] text-[#4A5056] hover:bg-[#F6F5F1] hover:text-[#14171A]'
+              }`}
+            >
+              {t.catalog.lowStockOnlyToggle} ({state.summary.lowStockCount})
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={showArchived}
+              onClick={() => setShowArchived((prev) => !prev)}
+              className={`min-h-[44px] px-3.5 py-2 text-xs font-semibold rounded-md border transition-colors flex items-center gap-1.5 ${
+                showArchived
+                  ? 'bg-[#ECEAE3] border-[#14171A] text-[#14171A]'
+                  : 'bg-[#FFFFFF] border-[#DCD9D0] text-[#4A5056] hover:bg-[#F6F5F1] hover:text-[#14171A]'
+              }`}
+            >
+              <Archive className="w-3.5 h-3.5" />
+              <span>Archived ({archivedCount})</span>
+            </button>
+          </div>
         </div>
 
         {/* Category Segmented Filter Buttons */}
@@ -133,8 +199,12 @@ export const MaterialsView: React.FC = () => {
             aria-label={t.catalog.fieldCategoryLabel}
             className="flex flex-wrap items-center gap-1 p-1 bg-[#ECEAE3] rounded-md"
           >
-            {CATEGORY_TABS.map((cat) => {
+            {categoryTabs.map((cat) => {
               const isActive = selectedCategory === cat;
+              const label =
+                cat === 'all'
+                  ? t.categories.all
+                  : getCategoryLabel(t, cat, categories);
               return (
                 <button
                   key={cat}
@@ -147,7 +217,7 @@ export const MaterialsView: React.FC = () => {
                       : 'text-[#4A5056] hover:text-[#14171A]'
                   }`}
                 >
-                  {t.categories[cat]}
+                  {label}
                 </button>
               );
             })}
@@ -170,7 +240,6 @@ export const MaterialsView: React.FC = () => {
             {t.shell.loadingState}
           </div>
         ) : materials.length === 0 ? (
-          /* Empty Catalog State */
           <div className="p-8 text-center space-y-3">
             <h3 className="text-base font-semibold text-[#14171A]">
               {t.catalog.emptyCatalogTitle}
@@ -188,7 +257,6 @@ export const MaterialsView: React.FC = () => {
             </button>
           </div>
         ) : filteredMaterials.length === 0 ? (
-          /* Filtered Empty State */
           <div className="p-8 text-center space-y-3">
             <h3 className="text-base font-semibold text-[#14171A]">
               {t.catalog.noMatchesTitle}
@@ -207,13 +275,20 @@ export const MaterialsView: React.FC = () => {
         ) : (
           <div className="divide-y divide-[#ECEAE3]">
             {filteredMaterials.map((item) => {
-              const isLowStock = item.currentStock <= item.minStockLevel;
+              const isLowStock =
+                !item.isArchived && item.currentStock <= item.minStockLevel;
+              const hasHistory = hasTransactionsForMaterial(item.id);
+
               return (
                 <div
                   key={item.id}
-                  className="p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:bg-[#F6F5F1]/60 transition-colors"
+                  className={`p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center justify-between gap-3 transition-colors ${
+                    item.isArchived
+                      ? 'bg-[#ECEAE3]/50 opacity-80'
+                      : 'hover:bg-[#F6F5F1]/60'
+                  }`}
                 >
-                  {/* Left: Material Title & Unboxed Middle-Dot Metadata */}
+                  {/* Left: Material Title & Metadata */}
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-baseline gap-2">
                       <h3 className="text-base font-semibold text-[#14171A]">
@@ -222,19 +297,27 @@ export const MaterialsView: React.FC = () => {
                       <span aria-hidden="true" className="text-[#6E757C]">
                         ·
                       </span>
-                      <span
-                        className={`text-xs font-medium ${
-                          isLowStock ? 'text-[#9A3412]' : 'text-[#166534]'
-                        }`}
-                      >
-                        {isLowStock
-                          ? t.shell.lowStockFlag
-                          : t.shell.inStockFlag}
-                      </span>
+                      {item.isArchived ? (
+                        <span className="text-xs font-bold uppercase text-[#6E757C]">
+                          Archived (Inactive)
+                        </span>
+                      ) : (
+                        <span
+                          className={`text-xs font-medium ${
+                            isLowStock ? 'text-[#9A3412]' : 'text-[#166534]'
+                          }`}
+                        >
+                          {isLowStock
+                            ? t.shell.lowStockFlag
+                            : t.shell.inStockFlag}
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-[#4A5056]">
-                      <span>{t.categories[item.category]}</span>
+                      <span>
+                        {getCategoryLabel(t, item.category, categories)}
+                      </span>
                       {item.specs && (
                         <>
                           <span aria-hidden="true"> · </span>
@@ -243,7 +326,8 @@ export const MaterialsView: React.FC = () => {
                       )}
                       <span aria-hidden="true"> · </span>
                       <span className="font-mono-tabular">
-                        {t.shell.minStockCol}: {formatQuantity(item.minStockLevel)}{' '}
+                        {t.shell.minStockCol}:{' '}
+                        {formatQuantity(item.minStockLevel)}{' '}
                         {t.units[item.unit]}
                       </span>
                     </p>
@@ -279,36 +363,41 @@ export const MaterialsView: React.FC = () => {
                             isLowStock ? 'text-[#9A3412]' : 'text-[#14171A]'
                           }`}
                         >
-                          {formatQuantity(item.currentStock)} {t.units[item.unit]}
+                          {formatQuantity(item.currentStock)}{' '}
+                          {t.units[item.unit]}
                         </p>
                       </div>
                     </div>
 
                     {/* Row Action Buttons */}
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={item.currentStock <= 0}
-                        onClick={() => {
-                          addToPosCart(item.id);
-                          setActiveTab('pos');
-                        }}
-                        aria-label={`${t.catalog.sellActionBtn} ${item.name}`}
-                        className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <ShoppingCart className="w-3.5 h-3.5 text-[#B84A14]" />
-                        <span>{t.catalog.sellActionBtn}</span>
-                      </button>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {!item.isArchived && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={item.currentStock <= 0}
+                            onClick={() => {
+                              addToPosCart(item.id);
+                              setActiveTab('pos');
+                            }}
+                            aria-label={`${t.catalog.sellActionBtn} ${item.name}`}
+                            className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] flex items-center gap-1 disabled:opacity-50"
+                          >
+                            <ShoppingCart className="w-3.5 h-3.5 text-[#B84A14]" />
+                            <span>{t.catalog.sellActionBtn}</span>
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => openStockInForMaterial(item.id)}
-                        aria-label={`${t.catalog.stockInActionBtn} ${item.name}`}
-                        className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] flex items-center gap-1"
-                      >
-                        <ArrowDownToLine className="w-3.5 h-3.5 text-[#4A5056]" />
-                        <span>{t.catalog.stockInActionBtn}</span>
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => openStockInForMaterial(item.id)}
+                            aria-label={`${t.catalog.stockInActionBtn} ${item.name}`}
+                            className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] flex items-center gap-1"
+                          >
+                            <ArrowDownToLine className="w-3.5 h-3.5 text-[#4A5056]" />
+                            <span>{t.catalog.stockInActionBtn}</span>
+                          </button>
+                        </>
+                      )}
 
                       <button
                         type="button"
@@ -319,6 +408,41 @@ export const MaterialsView: React.FC = () => {
                         <Edit3 className="w-3.5 h-3.5 text-[#4A5056]" />
                         <span>{t.catalog.editMaterialBtn}</span>
                       </button>
+
+                      {/* Archive / Restore Button (always available, primary path for items with history) */}
+                      <button
+                        type="button"
+                        onClick={() => setMaterialToArchiveToggle(item)}
+                        aria-label={`${
+                          item.isArchived ? 'Restore' : 'Archive'
+                        } ${item.name}`}
+                        className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#4A5056] hover:text-[#14171A] hover:bg-[#F6F5F1] flex items-center gap-1"
+                      >
+                        {item.isArchived ? (
+                          <>
+                            <ArchiveRestore className="w-3.5 h-3.5 text-[#166534]" />
+                            <span>Restore</span>
+                          </>
+                        ) : (
+                          <>
+                            <Archive className="w-3.5 h-3.5 text-[#9A3412]" />
+                            <span>Archive</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Delete Button (permanently deletes unused material; explains rule if history exists) */}
+                      {!hasHistory && (
+                        <button
+                          type="button"
+                          onClick={() => setMaterialToDelete(item)}
+                          aria-label={`Delete ${item.name}`}
+                          className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#B91C1C] hover:bg-[#FEF2F2] flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -332,6 +456,64 @@ export const MaterialsView: React.FC = () => {
         isOpen={isModalOpen}
         editingMaterial={editingMaterial}
         onClose={() => setIsModalOpen(false)}
+      />
+
+      <UsersAndCategoriesModal
+        isOpen={isCategoryModalOpen}
+        initialSection="categories"
+        onClose={() => setIsCategoryModalOpen(false)}
+      />
+
+      {/* Confirm Permanent Delete for Unused Material */}
+      <ConfirmDialog
+        isOpen={materialToDelete !== null}
+        title="Delete Unused Material"
+        recordName={materialToDelete ? materialToDelete.name : ''}
+        description="This material has never been used in any POS sales, Stock-In deliveries, or Ground-Stock Audits. Confirming will permanently remove it from the catalog."
+        confirmLabel="Permanently Delete Material"
+        variant="danger"
+        onConfirm={async () => {
+          if (!materialToDelete) return;
+          await deleteMaterial(materialToDelete.id);
+        }}
+        onClose={() => setMaterialToDelete(null)}
+      />
+
+      {/* Confirm Archive / Restore Material */}
+      <ConfirmDialog
+        isOpen={materialToArchiveToggle !== null}
+        title={
+          materialToArchiveToggle?.isArchived
+            ? 'Restore Archived Material'
+            : 'Archive / Deactivate Material'
+        }
+        recordName={materialToArchiveToggle ? materialToArchiveToggle.name : ''}
+        description={
+          materialToArchiveToggle?.isArchived
+            ? 'Restoring this material will make it active again for POS sales, Stock-In deliveries, and Ground-Stock Audits.'
+            : 'Archiving deactivates this material from new POS sales, Stock-In deliveries, and Ground-Stock Audits while keeping all historical ledger records intact.'
+        }
+        prohibitedExplanation={
+          materialToArchiveToggle &&
+          hasTransactionsForMaterial(materialToArchiveToggle.id) &&
+          !materialToArchiveToggle.isArchived
+            ? 'Note: Because this material has transaction history, permanent deletion is prohibited to protect ledger integrity. Archiving is the required safe action.'
+            : undefined
+        }
+        confirmLabel={
+          materialToArchiveToggle?.isArchived
+            ? 'Restore Material'
+            : 'Archive Material'
+        }
+        variant={materialToArchiveToggle?.isArchived ? 'primary' : 'warning'}
+        onConfirm={async () => {
+          if (!materialToArchiveToggle) return;
+          await setMaterialArchived(
+            materialToArchiveToggle.id,
+            !materialToArchiveToggle.isArchived
+          );
+        }}
+        onClose={() => setMaterialToArchiveToggle(null)}
       />
     </div>
   );

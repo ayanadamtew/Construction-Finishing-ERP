@@ -1,5 +1,6 @@
 import {
   AppRouteTab,
+  CategoryItem,
   ErrorCode,
   LanguageCode,
   MaterialCategory,
@@ -460,6 +461,19 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationDictionary> = {
       INSUFFICIENT_STOCK: 'Requested sale quantity exceeds available stock on the ground.',
       IMMUTABLE_FIELD_VIOLATION: 'Stock balance and locked units can only be modified through transactions.',
       MATERIAL_NOT_FOUND: 'The requested material was not found in the store catalog.',
+      RECORD_NOT_FOUND: 'The requested record was not found.',
+      UNAUTHORIZED: 'Your session is missing or expired. Please log in with your pre-registered credentials.',
+      INVALID_CREDENTIALS: 'Incorrect username or password. Please verify your pre-registered credentials.',
+      ACCOUNT_DEACTIVATED: 'This user account has been deactivated by an administrator.',
+      FORBIDDEN: 'Administrator privileges are required for this action.',
+      MATERIAL_HAS_HISTORY: 'Cannot permanently delete a material that has transaction history. Archive it instead.',
+      MATERIAL_ARCHIVED: 'This material is archived and cannot be used in new transactions until restored.',
+      CATEGORY_IN_USE: 'Cannot delete a category that is currently used by existing materials.',
+      ALREADY_REVERSED: 'This transaction has already been reversed.',
+      INSUFFICIENT_STOCK_FOR_REVERSAL: 'Cannot reverse this record because current ground stock is lower than the quantity to deduct.',
+      LAST_ADMIN_PROTECTION: 'Cannot delete or deactivate the last active administrator account.',
+      DELETION_PROHIBITED: 'Completed ledger transactions cannot be permanently deleted. Use the reversal workflow instead.',
+      DUPLICATE_RECORD: 'A record with this identifier already exists.',
       INTERNAL_ERROR: 'Unable to communicate with the store server. Please retry.',
     },
   },
@@ -709,6 +723,19 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationDictionary> = {
       INSUFFICIENT_STOCK: 'የተጠየቀው መጠን በመጋዘን ካለው ቀሪ ክምችት ይበልጣል፤ ሽያጩ ታግዷል።',
       IMMUTABLE_FIELD_VIOLATION: 'ቀሪ ክምችት የሚቀየረው በሽያጭ፣ በገቢ ወይም በቆጠራ ብቻ ነው።',
       MATERIAL_NOT_FOUND: 'የተጠየቀው ዕቃ በዝርዝሩ ውስጥ አልተገኘም።',
+      RECORD_NOT_FOUND: 'የተጠየቀው መዝገብ አልተገኘም።',
+      UNAUTHORIZED: 'እባክዎ በቅድሚያ በተመዘገበ መለያዎ ይግቡ።',
+      INVALID_CREDENTIALS: 'የተሳሳተ የተጠቃሚ ስም ወይም የይለፍ ቃል።',
+      ACCOUNT_DEACTIVATED: 'ይህ የተጠቃሚ መለያ ታግዷል።',
+      FORBIDDEN: 'ይህን ተግባር ለማከናወን የአስተዳዳሪ (Admin) ፈቃድ ያስፈልጋል።',
+      MATERIAL_HAS_HISTORY: 'የእንቅስቃሴ ታሪክ ያለውን ዕቃ እስከመጨረሻው መሰረዝ አይቻልም፤ በምትኩ በማህደር (Archive) ያስቀምጡት።',
+      MATERIAL_ARCHIVED: 'ይህ ዕቃ በማህደር ውስጥ ስለሆነ ለአዲስ እንቅስቃሴ መዋል አይችልም።',
+      CATEGORY_IN_USE: 'በዕቃዎች ጥቅም ላይ የዋለ ምድብን መሰረዝ አይቻልም።',
+      ALREADY_REVERSED: 'ይህ እንቅስቃሴ ከዚህ ቀደም ተቀልብሷል (Reversed)።',
+      INSUFFICIENT_STOCK_FOR_REVERSAL: 'አሁን ያለው ቀሪ ክምችት ስለማይበቃ ይህን እንቅስቃሴ መቀልበስ አይቻልም።',
+      LAST_ADMIN_PROTECTION: 'የመጨረሻውን ንቁ የአስተዳዳሪ መለያ መሰረዝ ወይም ማገድ አይቻልም።',
+      DELETION_PROHIBITED: 'የተጠናቀቁ የሂሳብ መዝገቦችን መሰረዝ ክልክል ነው፤ የመቀልበሻ (Reversal) ስርዓቱን ይጠቀሙ።',
+      DUPLICATE_RECORD: 'በዚህ ስም የተመዘገበ መረጃ ቀድሞውኑ አለ።',
       INTERNAL_ERROR: 'ከሰርቨሩ ጋር መገናኘት አልተቻለም። እባክዎ እንደገና ይሞክሩ።',
     },
   },
@@ -961,10 +988,34 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationDictionary> = {
       INSUFFICIENT_STOCK: 'Baay’inni gaafatame kuusaa lafa jiru caala; gurgurtaan dhorkameera.',
       IMMUTABLE_FIELD_VIOLATION: 'Kuusaan hafe gurgurtaa, galii ykn lakkoofsa lafaatiin qofa jijjiirama.',
       MATERIAL_NOT_FOUND: 'Meeshaan gaafatame tarree keessatti hin argamne.',
+      RECORD_NOT_FOUND: 'Galmeen gaafatame hin argamne.',
+      UNAUTHORIZED: 'Maaloo eenyummeessaa galmaa’een seenaa.',
+      INVALID_CREDENTIALS: 'Maqaa fayyadamaa ykn jecha darbii dogoggoraa.',
+      ACCOUNT_DEACTIVATED: 'Herregni fayyadamaa kun uggurameera.',
+      FORBIDDEN: 'Hojii kanaaf aangoo bulchaa (Admin) barbaachisa.',
+      MATERIAL_HAS_HISTORY: 'Meeshaa seenaa daldalaa qabu haquun hin danda’amu; kuusaa seenaa (Archive) keessa kaa’aa.',
+      MATERIAL_ARCHIVED: 'Meeshaan kun kuusaa seenaa keessa waan jiruuf daldala haaraaf hin oolu.',
+      CATEGORY_IN_USE: 'Ramaddii meeshaaleen itti fayyadamaa jiran haquun hin danda’amu.',
+      ALREADY_REVERSED: 'Daldalli kun duraan deebi’eera (Reversed).',
+      INSUFFICIENT_STOCK_FOR_REVERSAL: 'Kuusaan amma jiru waan hinuma gahaniif galmee kana deebisuun hin danda’amu.',
+      LAST_ADMIN_PROTECTION: 'Bulchaa (Admin) isa dhumaa haquun ykn ugguruun hin danda’amu.',
+      DELETION_PROHIBITED: 'Galmee daldalaa xumurame haquun dhorkaadha; sirna deebisuu (Reversal) fayyadamaa.',
+      DUPLICATE_RECORD: 'Galmeen maqaa kanaan duraan jira.',
       INTERNAL_ERROR: 'Sarvarii waliin walqunnamuun hin danda’amne. Irra deebi’ii yaali.',
     },
   },
 };
+
+export function getCategoryLabel(
+  t: TranslationDictionary,
+  categoryId: string,
+  customCategories?: CategoryItem[]
+): string {
+  const known = (t.categories as Record<string, string | undefined>)[categoryId];
+  if (known) return known;
+  const custom = customCategories?.find((c) => c.id === categoryId);
+  return custom ? custom.name : categoryId;
+}
 
 /**
  * Formats monetary values in Ethiopian Birr (ETB) rounded to 2 decimal places
@@ -990,3 +1041,4 @@ export function formatQuantity(quantity: number): string {
         maximumFractionDigits: 2,
       });
 }
+

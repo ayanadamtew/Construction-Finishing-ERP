@@ -1,5 +1,32 @@
 import { ApiErrorDetails, ApiErrorEnvelope, ErrorCode } from '../types/erp';
 
+function defaultHttpStatusForCode(code: ErrorCode): number {
+  switch (code) {
+    case 'UNAUTHORIZED':
+    case 'INVALID_CREDENTIALS':
+      return 401;
+    case 'FORBIDDEN':
+    case 'ACCOUNT_DEACTIVATED':
+      return 403;
+    case 'MATERIAL_NOT_FOUND':
+    case 'RECORD_NOT_FOUND':
+      return 404;
+    case 'MATERIAL_HAS_HISTORY':
+    case 'MATERIAL_ARCHIVED':
+    case 'CATEGORY_IN_USE':
+    case 'ALREADY_REVERSED':
+    case 'INSUFFICIENT_STOCK_FOR_REVERSAL':
+    case 'LAST_ADMIN_PROTECTION':
+    case 'DELETION_PROHIBITED':
+    case 'DUPLICATE_RECORD':
+      return 409;
+    case 'INTERNAL_ERROR':
+      return 500;
+    default:
+      return 400;
+  }
+}
+
 /**
  * Structured Domain & API Error class
  * Enforces deterministic HTTP status codes and machine-readable error envelopes
@@ -20,13 +47,7 @@ export class AppDomainError extends Error {
     this.name = 'AppDomainError';
     this.code = code;
     this.details = details;
-    this.statusHttp =
-      statusHttp ??
-      (code === 'MATERIAL_NOT_FOUND'
-        ? 404
-        : code === 'INTERNAL_ERROR'
-        ? 500
-        : 400);
+    this.statusHttp = statusHttp ?? defaultHttpStatusForCode(code);
   }
 
   public toEnvelope(): ApiErrorEnvelope {
