@@ -20,5 +20,11 @@
   "btnRecordStockIn": "Record Stock-In",
   "btnSubmitAudit": "Commit Ground Audit",
   "btnAddCartLine": "Add to Sale",
-  "btnSyncServer": "Sync REST API"
+  "btnSyncServer": "Sync Companion Server",
+  "companionSyncToggle": "Auto-Sync Companion Server",
+  "recentSalesSection": "Recent Sales Receipts",
+  "noRecentSales": "No sales recorded yet.",
+  "viewAllHistory": "View Full Ledger",
+  "itemsCount": "items",
+  "profitLabel": "Profit"
 }

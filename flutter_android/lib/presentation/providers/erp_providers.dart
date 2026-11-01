@@ -15,6 +15,7 @@ class ErpAppViewState {
   final Map<String, double> draftAuditCounts;
   final String draftAuditNote;
   final bool isLoading;
+  final bool companionSyncEnabled;
   final String? bannerMessage;
   final bool isBannerError;
 
@@ -27,6 +28,7 @@ class ErpAppViewState {
     this.draftAuditCounts = const {},
     this.draftAuditNote = '',
     this.isLoading = false,
+    this.companionSyncEnabled = false,
     this.bannerMessage,
     this.isBannerError = false,
   });
@@ -42,6 +44,7 @@ class ErpAppViewState {
     Map<String, double>? draftAuditCounts,
     String? draftAuditNote,
     bool? isLoading,
+    bool? companionSyncEnabled,
     String? bannerMessage,
     bool clearBanner = false,
     bool? isBannerError,
@@ -55,6 +58,7 @@ class ErpAppViewState {
       draftAuditCounts: draftAuditCounts ?? this.draftAuditCounts,
       draftAuditNote: draftAuditNote ?? this.draftAuditNote,
       isLoading: isLoading ?? this.isLoading,
+      companionSyncEnabled: companionSyncEnabled ?? this.companionSyncEnabled,
       bannerMessage: clearBanner ? null : (bannerMessage ?? this.bannerMessage),
       isBannerError: isBannerError ?? this.isBannerError,
     );
@@ -244,6 +248,39 @@ class ErpController extends StateNotifier<ErpAppViewState> {
       return true;
     } catch (e) {
       state = state.copyWith(
+        bannerMessage: e.toString(),
+        isBannerError: true,
+      );
+      return false;
+    }
+  }
+
+  void toggleCompanionSync(bool enabled) {
+    _repository.setCompanionSyncEnabled(enabled);
+    state = state.copyWith(
+      companionSyncEnabled: enabled,
+      bannerMessage: enabled
+          ? 'Companion Server write-through sync enabled.'
+          : 'Offline-only SQLite mode active.',
+      isBannerError: false,
+    );
+  }
+
+  Future<bool> syncWithCompanionServer() async {
+    state = state.copyWith(isLoading: true, clearBanner: true);
+    try {
+      final syncedState = await _repository.syncFromCompanionServer();
+      state = state.copyWith(
+        erpState: syncedState,
+        isLoading: false,
+        bannerMessage:
+            'Synchronized ${syncedState.materials.length} materials from Companion Server.',
+        isBannerError: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
         bannerMessage: e.toString(),
         isBannerError: true,
       );

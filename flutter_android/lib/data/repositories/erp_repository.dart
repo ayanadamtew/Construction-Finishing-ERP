@@ -4,16 +4,23 @@ import '../local/sqlite_database.dart';
 import '../remote/erp_api_client.dart';
 
 /// Offline-first repository coordinating local SQLite persistence (`Sqflite`),
-/// pure domain validation (`InventoryEngine`), and optional REST synchronization.
+/// pure domain validation (`InventoryEngine`), and optional REST synchronization
+/// with the Express companion server (`docs/API_CONTRACT.md`).
 class ErpRepository {
   final SqliteDatabaseHelper _sqlite;
   final ErpApiClient _apiClient;
+  bool syncWithCompanionServer;
 
   ErpRepository({
     SqliteDatabaseHelper? sqlite,
     ErpApiClient? apiClient,
+    this.syncWithCompanionServer = false,
   })  : _sqlite = sqlite ?? SqliteDatabaseHelper(),
         _apiClient = apiClient ?? ErpApiClient();
+
+  void setCompanionSyncEnabled(bool enabled) {
+    syncWithCompanionServer = enabled;
+  }
 
   Future<ErpState> initialize() async {
     try {
@@ -29,6 +36,9 @@ class ErpRepository {
   ) async {
     final result = InventoryEngine.registerMaterial(current, input);
     await _sqlite.saveState(result.state);
+    if (syncWithCompanionServer) {
+      await _apiClient.registerMaterial(input);
+    }
     return result.state;
   }
 
@@ -40,6 +50,9 @@ class ErpRepository {
     final result =
         InventoryEngine.updateMaterialMetadata(current, materialId, input);
     await _sqlite.saveState(result.state);
+    if (syncWithCompanionServer) {
+      await _apiClient.updateMaterialMetadata(materialId, input);
+    }
     return result.state;
   }
 
@@ -49,6 +62,9 @@ class ErpRepository {
   ) async {
     final result = InventoryEngine.recordSale(current, input);
     await _sqlite.saveState(result.state);
+    if (syncWithCompanionServer) {
+      await _apiClient.recordSale(input);
+    }
     return result;
   }
 
@@ -58,6 +74,9 @@ class ErpRepository {
   ) async {
     final result = InventoryEngine.recordStockIn(current, input);
     await _sqlite.saveState(result.state);
+    if (syncWithCompanionServer) {
+      await _apiClient.recordStockIn(input);
+    }
     return (state: result.state, stockIn: result.stockIn);
   }
 
@@ -67,6 +86,9 @@ class ErpRepository {
   ) async {
     final result = InventoryEngine.recordStockAudit(current, input);
     await _sqlite.saveState(result.state);
+    if (syncWithCompanionServer) {
+      await _apiClient.recordStockAudit(input);
+    }
     return result;
   }
 

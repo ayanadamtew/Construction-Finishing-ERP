@@ -125,9 +125,10 @@ class SaleLineItem {
       };
 
   factory SaleLineItem.fromJson(Map<String, dynamic> json) {
+    final materialId = json['materialId'] as String;
     return SaleLineItem(
-      id: json['id'] as String,
-      materialId: json['materialId'] as String,
+      id: (json['id'] as String?) ?? 'sli_$materialId',
+      materialId: materialId,
       materialName: json['materialName'] as String,
       unit: MaterialUnit.fromCode(json['unit'] as String),
       quantity: (json['quantity'] as num).toDouble(),
@@ -162,6 +163,7 @@ class SaleTransaction {
         'id': id,
         'items': items.map((e) => e.toJson()).toList(),
         'totalAmount': totalAmount,
+        'totalRevenue': totalAmount,
         'totalCost': totalCost,
         'totalProfit': totalProfit,
         'customerNote': customerNote,
@@ -169,14 +171,21 @@ class SaleTransaction {
       };
 
   factory SaleTransaction.fromJson(Map<String, dynamic> json) {
+    final totalAmount =
+        ((json['totalAmount'] ?? json['totalRevenue'] ?? 0) as num).toDouble();
+    final totalProfit = ((json['totalProfit'] ?? 0) as num).toDouble();
+    final totalCost = json['totalCost'] != null
+        ? (json['totalCost'] as num).toDouble()
+        : (totalAmount - totalProfit);
+
     return SaleTransaction(
       id: json['id'] as String,
       items: (json['items'] as List<dynamic>)
           .map((e) => SaleLineItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      totalAmount: (json['totalAmount'] as num).toDouble(),
-      totalCost: (json['totalCost'] as num).toDouble(),
-      totalProfit: (json['totalProfit'] as num).toDouble(),
+      totalAmount: totalAmount,
+      totalCost: totalCost,
+      totalProfit: totalProfit,
       customerNote: (json['customerNote'] as String?) ?? '',
       createdAt: json['createdAt'] as String,
     );
@@ -222,6 +231,7 @@ class StockInRecord {
         'quantityAdded': quantityAdded,
         'unitPurchaseCost': unitPurchaseCost,
         'totalPurchaseCost': totalPurchaseCost,
+        'totalCost': totalPurchaseCost,
         'previousStock': previousStock,
         'newStock': newStock,
         'previousUnitCost': previousUnitCost,
@@ -231,18 +241,24 @@ class StockInRecord {
       };
 
   factory StockInRecord.fromJson(Map<String, dynamic> json) {
+    final unitPurchaseCost = (json['unitPurchaseCost'] as num).toDouble();
+    final totalPurchaseCost =
+        ((json['totalPurchaseCost'] ?? json['totalCost'] ?? 0) as num)
+            .toDouble();
     return StockInRecord(
       id: json['id'] as String,
       materialId: json['materialId'] as String,
       materialName: json['materialName'] as String,
       unit: MaterialUnit.fromCode(json['unit'] as String),
       quantityAdded: (json['quantityAdded'] as num).toDouble(),
-      unitPurchaseCost: (json['unitPurchaseCost'] as num).toDouble(),
-      totalPurchaseCost: (json['totalPurchaseCost'] as num).toDouble(),
+      unitPurchaseCost: unitPurchaseCost,
+      totalPurchaseCost: totalPurchaseCost,
       previousStock: (json['previousStock'] as num).toDouble(),
       newStock: (json['newStock'] as num).toDouble(),
-      previousUnitCost: (json['previousUnitCost'] as num).toDouble(),
-      newUnitCost: (json['newUnitCost'] as num).toDouble(),
+      previousUnitCost:
+          ((json['previousUnitCost'] ?? unitPurchaseCost) as num).toDouble(),
+      newUnitCost:
+          ((json['newUnitCost'] ?? unitPurchaseCost) as num).toDouble(),
       supplierNote: (json['supplierNote'] as String?) ?? '',
       createdAt: json['createdAt'] as String,
     );
@@ -308,6 +324,7 @@ class StockAuditRecord {
         'id': id,
         'adjustments': adjustments.map((e) => e.toJson()).toList(),
         'auditNote': auditNote,
+        'note': auditNote,
         'createdAt': createdAt,
       };
 
@@ -317,7 +334,7 @@ class StockAuditRecord {
       adjustments: (json['adjustments'] as List<dynamic>)
           .map((e) => AuditLineItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      auditNote: (json['auditNote'] as String?) ?? '',
+      auditNote: ((json['auditNote'] ?? json['note']) as String?) ?? '',
       createdAt: json['createdAt'] as String,
     );
   }
@@ -346,21 +363,39 @@ class StoreSummary {
     required this.totalSalesCount,
   });
 
-  factory StoreSummary.fromJson(Map<String, dynamic> json) {
+  factory StoreSummary.fromJson(
+    Map<String, dynamic> json, {
+    int fallbackTotalMaterials = 0,
+    int fallbackTotalSalesCount = 0,
+  }) {
+    final cumulativeRevenue = ((json['cumulativeSalesRevenue'] ??
+                json['totalRevenue'] ??
+                0) as num)
+        .toDouble();
+    final cumulativeProfit =
+        ((json['cumulativeSalesProfit'] ?? json['totalProfit'] ?? 0) as num)
+            .toDouble();
+
     return StoreSummary(
-      totalMaterials: (json['totalMaterials'] as num).toInt(),
-      lowStockCount: (json['lowStockCount'] as num).toInt(),
-      totalStockValuationCost:
-          (json['totalStockValuationCost'] as num).toDouble(),
-      totalStockValuationRetail:
-          (json['totalStockValuationRetail'] as num).toDouble(),
-      todaySalesRevenue: (json['todaySalesRevenue'] as num).toDouble(),
-      todaySalesProfit: (json['todaySalesProfit'] as num).toDouble(),
-      cumulativeSalesRevenue:
-          (json['cumulativeSalesRevenue'] as num).toDouble(),
-      cumulativeSalesProfit:
-          (json['cumulativeSalesProfit'] as num).toDouble(),
-      totalSalesCount: (json['totalSalesCount'] as num).toInt(),
+      totalMaterials:
+          ((json['totalMaterials'] ?? fallbackTotalMaterials) as num).toInt(),
+      lowStockCount: ((json['lowStockCount'] ?? 0) as num).toInt(),
+      totalStockValuationCost: ((json['totalStockValuationCost'] ??
+                  json['inventoryCostValue'] ??
+                  0) as num)
+          .toDouble(),
+      totalStockValuationRetail: ((json['totalStockValuationRetail'] ??
+                  json['inventoryRetailValue'] ??
+                  0) as num)
+          .toDouble(),
+      todaySalesRevenue:
+          ((json['todaySalesRevenue'] ?? cumulativeRevenue) as num).toDouble(),
+      todaySalesProfit:
+          ((json['todaySalesProfit'] ?? cumulativeProfit) as num).toDouble(),
+      cumulativeSalesRevenue: cumulativeRevenue,
+      cumulativeSalesProfit: cumulativeProfit,
+      totalSalesCount:
+          ((json['totalSalesCount'] ?? fallbackTotalSalesCount) as num).toInt(),
     );
   }
 }

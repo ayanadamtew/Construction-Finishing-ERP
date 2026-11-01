@@ -20,5 +20,11 @@
   "btnRecordStockIn": "ገቢ ዕቃ መዝግብ",
   "btnSubmitAudit": "ቆጠራ አጽድቅ",
   "btnAddCartLine": "ወደ ሽያጭ ጨምር",
-  "btnSyncServer": "ከሰርቨር ጋር አመሳክር"
+  "btnSyncServer": "ከሰርቨር ጋር አመሳክር",
+  "companionSyncToggle": "ቀጥታ ከሰርቨር ጋር አመሳክር",
+  "recentSalesSection": "የቅርብ ጊዜ የሽያጭ ደረሰኞች",
+  "noRecentSales": "እስካሁን የተመዘገበ ሽያጭ የለም።",
+  "viewAllHistory": "ሙሉ ታሪክ ይመልከቱ",
+  "itemsCount": "ዕቃዎች",
+  "profitLabel": "ትርፍ"
 }

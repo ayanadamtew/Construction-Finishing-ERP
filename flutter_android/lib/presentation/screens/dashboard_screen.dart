@@ -17,6 +17,8 @@ class DashboardScreen extends ConsumerWidget {
         .where((m) => m.currentStock <= m.minStockLevel)
         .toList();
 
+    final recentSales = viewState.erpState.sales.take(5).toList();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -104,9 +106,52 @@ class DashboardScreen extends ConsumerWidget {
               icon: const Icon(Icons.fact_check_outlined, size: 18),
               label: Text(i18n.t('navAudit')),
             ),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ErpColors.textPrimary,
+                side: const BorderSide(color: ErpColors.borderStrong),
+                minimumSize: const Size(150, 48),
+              ),
+              onPressed: viewState.isLoading
+                  ? null
+                  : () => controller.syncWithCompanionServer(),
+              icon: const Icon(Icons.sync, size: 18),
+              label: Text(i18n.t('btnSyncServer')),
+            ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
+
+        // Companion Server Write-Through Sync Toggle
+        Container(
+          decoration: BoxDecoration(
+            color: ErpColors.surfaceCard,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: ErpColors.borderSubtle),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  i18n.t('companionSyncToggle'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: ErpColors.textPrimary,
+                  ),
+                ),
+              ),
+              Switch(
+                value: viewState.companionSyncEnabled,
+                activeColor: ErpColors.accentTerracotta,
+                onChanged: controller.toggleCompanionSync,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
 
         // Low-Stock Watchlist Panel
         Container(
@@ -207,6 +252,105 @@ class DashboardScreen extends ConsumerWidget {
                                 color: m.isOutOfStock
                                     ? ErpColors.statusDanger
                                     : ErpColors.statusWarning,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Recent Sales Receipts Panel (SCR-01 Parity)
+        Container(
+          decoration: BoxDecoration(
+            color: ErpColors.surfaceCard,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: ErpColors.borderSubtle),
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    i18n.t('recentSalesSection'),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: ErpColors.textPrimary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => controller.setActiveTab(5),
+                    child: Text(
+                      i18n.t('viewAllHistory'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ErpColors.accentTerracotta,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 16, color: ErpColors.borderSubtle),
+              if (recentSales.isEmpty)
+                Text(
+                  i18n.t('noRecentSales'),
+                  style: const TextStyle(color: ErpColors.textSecondary),
+                )
+              else
+                ...recentSales.map(
+                  (sale) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                sale.customerNote.isNotEmpty
+                                    ? sale.customerNote
+                                    : sale.id,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: ErpColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                '${sale.id} • ${sale.items.length} ${i18n.t('itemsCount')} • ${sale.timestamp.split('T').first}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: ErpColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              formatETB(sale.totalAmount),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: ErpColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              '${i18n.t('profitLabel')}: ${formatETB(sale.totalProfit)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: ErpColors.statusSuccess,
                               ),
                             ),
                           ],

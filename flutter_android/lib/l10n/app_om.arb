@@ -20,5 +20,11 @@
   "btnRecordStockIn": "Galii Kuusaa Galmeessi",
   "btnSubmitAudit": "Lakkoofsa Mirkaneessi",
   "btnAddCartLine": "Gara Gurgurtaatti Dabali",
-  "btnSyncServer": "Server Waliin Wal-simsiisi"
+  "btnSyncServer": "Server Waliin Wal-simsiisi",
+  "companionSyncToggle": "Raawwii Server Waliin Wal-simsiisi",
+  "recentSalesSection": "Nagaheewwan Gurgurtaa Dhihoo",
+  "noRecentSales": "Gurgurtaan galmaa'e hin jiru.",
+  "viewAllHistory": "Seenaa Guutuu Ilaali",
+  "itemsCount": "meeshaalee",
+  "profitLabel": "Bu'aa"
 }
