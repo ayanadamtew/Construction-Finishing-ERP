@@ -793,10 +793,17 @@ void main() {
         controller.openMoreSubTab(2);
         await tester.pumpAndSettle();
 
+        final settingsListFinder = find.byKey(const ValueKey('settings_list_view'));
+        if (settingsListFinder.evaluate().isNotEmpty) {
+          await tester.drag(settingsListFinder, const Offset(0, -400));
+          await tester.pumpAndSettle();
+        }
+
         expect(find.text('About EFA'), findsOneWidget);
         expect(find.text('Ayana Damtew'), findsOneWidget);
         expect(find.text('+251973395537'), findsOneWidget);
         expect(find.text('1.0.0'), findsOneWidget);
+        expect(tester.takeException(), isNull);
 
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();

@@ -238,6 +238,8 @@ class _SettingsSubView extends ConsumerWidget {
     final currentUser = viewState.currentUser;
 
     return ListView(
+      key: const ValueKey('settings_list_view'),
+      cacheExtent: 1200,
       padding: const EdgeInsets.all(16),
       children: [
         // 1. Language Switcher Card (Moved out of crowded header!)
