@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/erp_constants.dart';
 import '../../domain/models/erp_models.dart';
 import '../providers/erp_providers.dart';
+import '../widgets/erp_components.dart';
 import 'confirm_action_dialog.dart';
 
-/// `SCR-08` — Administrator User & Category Management Modal Sheet (`FR-025`, `FR-028`, `BR-010`, `BR-012`).
+/// `SCR-08` — Redesigned Administrator User & Category Management Modal Sheet
 class AdminManagementSheet extends ConsumerStatefulWidget {
   const AdminManagementSheet({super.key});
 
@@ -13,10 +14,14 @@ class AdminManagementSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: ErpColors.surfaceCard,
-      builder: (_) => const SizedBox(
-        height: 620,
-        child: AdminManagementSheet(),
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: ErpColors.surfaceCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: const AdminManagementSheet(),
       ),
     );
   }
@@ -61,44 +66,51 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
       length: 2,
       child: Column(
         children: [
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 14, 10, 6),
-            color: ErpColors.textPrimary,
-            child: Column(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: ErpColors.borderStrong,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 4),
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        i18n.t('adminPanelTitle'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
+                Expanded(
+                  child: Text(
+                    i18n.t('adminPanelTitle'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: ErpColors.textPrimary,
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ],
+                  ),
                 ),
-                TabBar(
-                  labelColor: Colors.white,
-                  unselectedLabelColor: const Color(0xFFD6D3CD),
-                  indicatorColor: ErpColors.accentTerracotta,
-                  tabs: [
-                    Tab(text: '${i18n.t('tabUsers')} (${users.length})'),
-                    Tab(
-                      text: '${i18n.t('tabCategories')} (${categories.length})',
-                    ),
-                  ],
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: ErpColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
+          TabBar(
+            labelColor: ErpColors.primaryDark,
+            unselectedLabelColor: ErpColors.textSecondary,
+            indicatorColor: ErpColors.primary,
+            tabs: [
+              Tab(text: '${i18n.t('tabUsers')} (${users.length})'),
+              Tab(text: '${i18n.t('tabCategories')} (${categories.length})'),
+            ],
+          ),
+          const Divider(height: 1, color: ErpColors.borderSubtle),
           Expanded(
             child: TabBarView(
               children: [
@@ -107,10 +119,10 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: ErpColors.surfaceElevated,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: ErpColors.borderSubtle),
                       ),
                       child: Column(
@@ -119,32 +131,25 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                           Text(
                             i18n.t('btnCreateUser'),
                             style: const TextStyle(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               fontSize: 14,
+                              color: ErpColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 10),
                           Row(
                             children: [
                               Expanded(
-                                child: TextField(
+                                child: ErpInputField(
                                   controller: _usernameCtrl,
-                                  decoration: InputDecoration(
-                                    labelText: i18n.t('fieldUsername'),
-                                    isDense: true,
-                                    border: const OutlineInputBorder(),
-                                  ),
+                                  label: i18n.t('fieldUsername'),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: TextField(
+                                child: ErpInputField(
                                   controller: _emailCtrl,
-                                  decoration: InputDecoration(
-                                    labelText: i18n.t('fieldEmail'),
-                                    isDense: true,
-                                    border: const OutlineInputBorder(),
-                                  ),
+                                  label: i18n.t('fieldEmail'),
                                 ),
                               ),
                             ],
@@ -153,32 +158,33 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                           Row(
                             children: [
                               Expanded(
-                                child: TextField(
+                                child: ErpInputField(
                                   controller: _fullNameCtrl,
-                                  decoration: InputDecoration(
-                                    labelText: i18n.t('fieldFullName'),
-                                    isDense: true,
-                                    border: const OutlineInputBorder(),
-                                  ),
+                                  label: i18n.t('fieldFullName'),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: DropdownButtonFormField<UserRole>(
                                   value: _selectedRole,
+                                  isExpanded: true,
                                   decoration: InputDecoration(
                                     labelText: i18n.t('fieldRole'),
-                                    isDense: true,
-                                    border: const OutlineInputBorder(),
                                   ),
                                   items: [
                                     DropdownMenuItem(
                                       value: UserRole.staff,
-                                      child: Text(i18n.t('roleStaff')),
+                                      child: Text(
+                                        i18n.t('roleStaff'),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                     DropdownMenuItem(
                                       value: UserRole.admin,
-                                      child: Text(i18n.t('roleAdmin')),
+                                      child: Text(
+                                        i18n.t('roleAdmin'),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ],
                                   onChanged: (val) {
@@ -191,34 +197,29 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          TextField(
+                          ErpInputField(
                             controller: _passwordCtrl,
                             obscureText: _obscureNewPassword,
-                            decoration: InputDecoration(
-                              labelText: i18n.t('fieldPassword'),
-                              isDense: true,
-                              border: const OutlineInputBorder(),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscureNewPassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  size: 18,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscureNewPassword = !_obscureNewPassword;
-                                  });
-                                },
+                            label: i18n.t('fieldPassword'),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureNewPassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                size: 18,
                               ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureNewPassword = !_obscureNewPassword;
+                                });
+                              },
                             ),
                           ),
                           const SizedBox(height: 10),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: ErpColors.accentTerracotta,
-                              foregroundColor: Colors.white,
-                            ),
+                          ErpButton(
+                            label: i18n.t('btnCreateUser'),
+                            icon: Icons.person_add_alt_1_rounded,
+                            isFullWidth: true,
                             onPressed: () async {
                               final ok = await controller.createUser(
                                 CreateUserInput(
@@ -236,8 +237,6 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                                 _passwordCtrl.clear();
                               }
                             },
-                            icon: const Icon(Icons.person_add_alt_1, size: 18),
-                            label: Text(i18n.t('btnCreateUser')),
                           ),
                         ],
                       ),
@@ -250,7 +249,7 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: ErpColors.surfaceCard,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: ErpColors.borderSubtle),
                         ),
                         child: Row(
@@ -261,39 +260,36 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
-                                        u.fullName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: u.role == UserRole.admin
-                                              ? ErpColors.statusWarningBg
-                                              : ErpColors.surfaceElevated,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
+                                      Flexible(
                                         child: Text(
-                                          u.role.code.toUpperCase(),
+                                          u.fullName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
+                                      const SizedBox(width: 6),
+                                      ErpStatusLabel(
+                                        text: u.role.code.toUpperCase(),
+                                        textColor: u.role == UserRole.admin
+                                            ? ErpColors.primaryDark
+                                            : ErpColors.textSecondary,
+                                        backgroundColor: u.role == UserRole.admin
+                                            ? ErpColors.primaryLight
+                                            : ErpColors.surfaceElevated,
+                                      ),
                                     ],
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
                                     '${u.username} • ${u.email}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11.5,
                                       color: ErpColors.textSecondary,
                                     ),
                                   ),
@@ -310,18 +306,21 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                                   u.isActive
                                       ? i18n.t('btnDeactivate')
                                       : i18n.t('btnActivate'),
+                                  style: const TextStyle(fontSize: 12),
                                 ),
                               ),
                               IconButton(
                                 icon: const Icon(
                                   Icons.delete_outline,
+                                  size: 19,
                                   color: ErpColors.statusDanger,
                                 ),
                                 onPressed: () async {
                                   final res = await ConfirmActionDialog.show(
                                     context,
                                     title: i18n.t('confirmDeleteTitle'),
-                                    recordName: '${u.fullName} (@${u.username})',
+                                    recordName:
+                                        '${u.fullName} (@${u.username})',
                                     description:
                                         'Permanently remove this authorized user account?',
                                     confirmLabel: i18n.t('btnDelete'),
@@ -345,10 +344,10 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: ErpColors.surfaceElevated,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: ErpColors.borderSubtle),
                       ),
                       child: Column(
@@ -357,34 +356,25 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                           Row(
                             children: [
                               Expanded(
-                                child: TextField(
+                                child: ErpInputField(
                                   controller: _catCodeCtrl,
-                                  decoration: InputDecoration(
-                                    labelText: i18n.t('fieldCategoryCode'),
-                                    isDense: true,
-                                    border: const OutlineInputBorder(),
-                                  ),
+                                  label: i18n.t('fieldCategoryCode'),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: TextField(
+                                child: ErpInputField(
                                   controller: _catNameCtrl,
-                                  decoration: InputDecoration(
-                                    labelText: i18n.t('fieldCategoryName'),
-                                    isDense: true,
-                                    border: const OutlineInputBorder(),
-                                  ),
+                                  label: i18n.t('fieldCategoryName'),
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 10),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: ErpColors.accentTerracotta,
-                              foregroundColor: Colors.white,
-                            ),
+                          ErpButton(
+                            label: i18n.t('btnAddCategory'),
+                            icon: Icons.add_rounded,
+                            isFullWidth: true,
                             onPressed: () async {
                               final ok = await controller.createCategory(
                                 CreateCategoryInput(
@@ -397,8 +387,6 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                                 _catNameCtrl.clear();
                               }
                             },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: Text(i18n.t('btnAddCategory')),
                           ),
                         ],
                       ),
@@ -413,7 +401,7 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: ErpColors.surfaceCard,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: ErpColors.borderSubtle),
                         ),
                         child: Row(
@@ -424,14 +412,18 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                                 children: [
                                   Text(
                                     cat.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
+                                      fontSize: 13.5,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
                                     'Code: ${cat.code} • Used by $usageCount material(s)',
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11.5,
                                       color: ErpColors.textSecondary,
                                     ),
                                   ),
@@ -442,6 +434,7 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                               IconButton(
                                 icon: Icon(
                                   Icons.delete_outline,
+                                  size: 19,
                                   color: usageCount > 0
                                       ? ErpColors.textMuted
                                       : ErpColors.statusDanger,

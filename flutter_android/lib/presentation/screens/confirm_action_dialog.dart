@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/erp_constants.dart';
 import '../../l10n/erp_localizations.dart';
+import '../widgets/erp_components.dart';
 
 /// Reusable confirmation dialog that displays the exact record name/ID before
-/// executing a destructive or reversal action (`UI Requirements` 2 & 3).
+/// executing a destructive or reversal action.
 class ConfirmActionDialog extends StatefulWidget {
   final String title;
   final String recordName;
@@ -24,7 +25,6 @@ class ConfirmActionDialog extends StatefulWidget {
     required this.i18n,
   });
 
-  /// Shows the confirmation dialog and returns `(confirmed: true, reason: '...')` or `null` if cancelled.
   static Future<({bool confirmed, String reason})?> show(
     BuildContext context, {
     required String title,
@@ -68,12 +68,12 @@ class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
     final i18n = widget.i18n;
     return AlertDialog(
       backgroundColor: ErpColors.surfaceCard,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         widget.title,
         style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
           color: ErpColors.textPrimary,
         ),
       ),
@@ -86,8 +86,8 @@ class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: ErpColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: ErpColors.borderStrong),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: ErpColors.borderSubtle),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,8 +104,8 @@ class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
                   Text(
                     widget.recordName,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
                       color: ErpColors.textPrimary,
                     ),
                   ),
@@ -116,21 +116,18 @@ class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
             Text(
               widget.description,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 12.5,
                 color: ErpColors.textSecondary,
               ),
             ),
             if (widget.requireReason) ...[
               const SizedBox(height: 12),
-              TextField(
+              ErpInputField(
                 controller: _reasonCtrl,
+                label: i18n.t('reversalReasonLabel'),
+                hintText: i18n.t('reversalReasonHint'),
+                errorText: _errorText,
                 maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: i18n.t('reversalReasonLabel'),
-                  hintText: i18n.t('reversalReasonHint'),
-                  errorText: _errorText,
-                  border: const OutlineInputBorder(),
-                ),
                 onChanged: (_) {
                   if (_errorText != null) {
                     setState(() => _errorText = null);

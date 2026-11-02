@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/erp_constants.dart';
 import '../providers/erp_providers.dart';
+import '../widgets/erp_components.dart';
 
-/// `SCR-06` — Physical Ground-Stock Audit & Variance Reconciliation (`FR-015`–`FR-017`)
+/// `SCR-06` — Redesigned Physical Ground-Stock Audit & Variance Reconciliation
 class StockAuditScreen extends ConsumerWidget {
   const StockAuditScreen({super.key});
 
@@ -17,21 +18,17 @@ class StockAuditScreen extends ConsumerWidget {
         .toList();
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       children: [
-        Text(
-          i18n.t('auditTitle'),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: ErpColors.textPrimary,
-          ),
+        ErpSectionHeader(
+          title: i18n.t('auditTitle'),
+          count: materials.length,
         ),
         const SizedBox(height: 4),
         Text(
           i18n.t('auditSubtitle'),
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 12.5,
             color: ErpColors.textSecondary,
           ),
         ),
@@ -40,19 +37,20 @@ class StockAuditScreen extends ConsumerWidget {
           final physical =
               viewState.draftAuditCounts[m.id] ?? m.currentStock;
           final variance = round2(physical - m.currentStock);
+          final unitStr = i18n.unitLabel(m.unit.code);
 
           return Container(
-            margin: const EdgeInsets.only(bottom: 10),
+            margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: ErpColors.surfaceCard,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: variance == 0
                     ? ErpColors.borderSubtle
                     : (variance < 0
-                        ? ErpColors.statusDanger
-                        : ErpColors.statusSuccess),
+                        ? ErpColors.statusDanger.withValues(alpha: 0.45)
+                        : ErpColors.statusSuccess.withValues(alpha: 0.45)),
               ),
             ),
             child: Row(
@@ -64,19 +62,27 @@ class StockAuditScreen extends ConsumerWidget {
                     children: [
                       Text(
                         m.name,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      Text(
-                        '${i18n.t('auditExpected')}: ${formatQty(m.currentStock)} ${i18n.unitLabel(m.unit.code)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: ErpColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${i18n.t('auditExpected')}: ${formatQty(m.currentStock)} $unitStr',
+                        style: const TextStyle(
+                          fontSize: 11.5,
                           color: ErpColors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        '${i18n.t('auditVariance')}: ${variance > 0 ? '+' : ''}${formatQty(variance)} ${i18n.unitLabel(m.unit.code)}',
+                        '${i18n.t('auditVariance')}: ${variance > 0 ? '+' : ''}${formatQty(variance)} $unitStr',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w700,
                           color: variance == 0
                               ? ErpColors.textMuted
@@ -92,13 +98,17 @@ class StockAuditScreen extends ConsumerWidget {
                 Expanded(
                   flex: 2,
                   child: TextFormField(
+                    key: ValueKey('audit_${m.id}_${m.currentStock}'),
                     initialValue: formatQty(physical),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: ErpColors.textPrimary,
+                    ),
                     decoration: InputDecoration(
                       labelText: i18n.t('auditPhysical'),
-                      isDense: true,
-                      border: const OutlineInputBorder(),
                     ),
                     onChanged: (v) {
                       final parsed = double.tryParse(v);
@@ -113,28 +123,18 @@ class StockAuditScreen extends ConsumerWidget {
           );
         }),
         const SizedBox(height: 8),
-        TextField(
+        ErpInputField(
+          label: i18n.t('auditNoteLabel'),
+          prefixIcon: Icons.notes_rounded,
           onChanged: controller.updateDraftAuditNote,
-          decoration: InputDecoration(
-            labelText: i18n.t('auditNoteLabel'),
-            filled: true,
-            fillColor: ErpColors.surfaceCard,
-            border: const OutlineInputBorder(),
-          ),
         ),
         const SizedBox(height: 14),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: ErpColors.accentTerracotta,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
-          ),
+        ErpButton(
+          label: i18n.t('btnSubmitAudit'),
+          icon: Icons.fact_check_outlined,
+          variant: ErpButtonVariant.primary,
+          isFullWidth: true,
           onPressed: () => controller.commitDraftAudit(),
-          icon: const Icon(Icons.fact_check_outlined),
-          label: Text(
-            i18n.t('btnSubmitAudit'),
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
         ),
       ],
     );

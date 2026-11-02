@@ -2,24 +2,25 @@
 
 @layer base {
   :root {
-    --bg-canvas: #F6F5F1;
+    --bg-canvas: #F8FAFC;
     --bg-surface: #FFFFFF;
-    --bg-subtle: #ECEAE3;
-    --border-hairline: #DCD9D0;
-    --text-primary: #14171A;
-    --text-secondary: #4A5056;
-    --text-muted: #6E757C;
-    --accent-primary: #B84A14;
-    --accent-hover: #963B0E;
-    --status-success: #166534;
-    --status-warning: #9A3412;
-    --status-danger: #B91C1C;
+    --bg-subtle: #F1F5F9;
+    --border-hairline: #E2E8F0;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #64748B;
+    --accent-primary: #D97706;
+    --accent-hover: #B45309;
+    --status-success: #16A34A;
+    --status-warning: #D97706;
+    --status-danger: #DC2626;
   }
 
   body {
     font-family: 'Public Sans', 'Noto Sans Ethiopic', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
+    overflow-x: hidden;
   }
 
   h1, h2, h3, .font-display {

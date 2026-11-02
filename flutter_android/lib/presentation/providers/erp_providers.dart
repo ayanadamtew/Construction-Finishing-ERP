@@ -13,6 +13,8 @@ class ErpAppViewState {
   final List<UserAccount> users;
   final AppLanguage language;
   final int activeTabIndex;
+  final int inventorySubTab;
+  final int moreSubTab;
   final List<SaleCartLineInput> draftCart;
   final String draftCustomerNote;
   final Map<String, double> draftAuditCounts;
@@ -28,6 +30,8 @@ class ErpAppViewState {
     this.users = const [],
     this.language = AppLanguage.en,
     this.activeTabIndex = 0,
+    this.inventorySubTab = 0,
+    this.moreSubTab = 0,
     this.draftCart = const [],
     this.draftCustomerNote = '',
     this.draftAuditCounts = const {},
@@ -50,6 +54,8 @@ class ErpAppViewState {
     List<UserAccount>? users,
     AppLanguage? language,
     int? activeTabIndex,
+    int? inventorySubTab,
+    int? moreSubTab,
     List<SaleCartLineInput>? draftCart,
     String? draftCustomerNote,
     Map<String, double>? draftAuditCounts,
@@ -67,6 +73,8 @@ class ErpAppViewState {
       users: users ?? this.users,
       language: language ?? this.language,
       activeTabIndex: activeTabIndex ?? this.activeTabIndex,
+      inventorySubTab: inventorySubTab ?? this.inventorySubTab,
+      moreSubTab: moreSubTab ?? this.moreSubTab,
       draftCart: draftCart ?? this.draftCart,
       draftCustomerNote: draftCustomerNote ?? this.draftCustomerNote,
       draftAuditCounts: draftAuditCounts ?? this.draftAuditCounts,
@@ -107,6 +115,22 @@ class ErpController extends StateNotifier<ErpAppViewState> {
 
   void setActiveTab(int index) {
     state = state.copyWith(activeTabIndex: index, clearBanner: true);
+  }
+
+  void openInventorySubTab(int subTab) {
+    state = state.copyWith(
+      activeTabIndex: 3,
+      inventorySubTab: subTab,
+      clearBanner: true,
+    );
+  }
+
+  void openMoreSubTab(int subTab) {
+    state = state.copyWith(
+      activeTabIndex: 4,
+      moreSubTab: subTab,
+      clearBanner: true,
+    );
   }
 
   void clearBanner() {

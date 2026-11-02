@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, RefreshCw, Settings, ShieldCheck } from 'lucide-react';
+import { Globe, LogOut, RefreshCw, Settings, ShieldCheck } from 'lucide-react';
 import { useErpStore } from '../context/ErpContext';
 import { LanguageCode } from '../types/erp';
 import { UsersAndCategoriesModal } from './UsersAndCategoriesModal';
@@ -7,11 +7,11 @@ import { UsersAndCategoriesModal } from './UsersAndCategoriesModal';
 const LANGUAGE_OPTIONS: {
   code: LanguageCode;
   label: string;
-  ariaLabel: string;
+  native: string;
 }[] = [
-  { code: 'en', label: 'EN', ariaLabel: 'Switch language to English' },
-  { code: 'am', label: 'አማ', ariaLabel: 'Switch language to Amharic' },
-  { code: 'om', label: 'ORO', ariaLabel: 'Switch language to Afan Oromo' },
+  { code: 'en', label: 'EN', native: 'English' },
+  { code: 'am', label: 'አማ', native: 'አማርኛ' },
+  { code: 'om', label: 'OM', native: 'Afaan Oromoo' },
 ];
 
 export const Header: React.FC = () => {
@@ -26,98 +26,133 @@ export const Header: React.FC = () => {
   } = useErpStore();
 
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+
+  const activeLangObj =
+    LANGUAGE_OPTIONS.find((l) => l.code === language) ?? LANGUAGE_OPTIONS[0];
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-14 bg-[#FFFFFF] border-b border-[#DCD9D0] px-4 lg:px-8 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-base sm:text-lg font-bold tracking-tight text-[#14171A] truncate">
-              {t.appTitle}
-            </h1>
-            <span aria-hidden="true" className="hidden sm:inline text-[#6E757C]">
-              ·
-            </span>
-            <span className="hidden md:inline text-xs text-[#4A5056] truncate">
-              {t.shell.syncStatusConnected}
-            </span>
+      <header className="sticky top-0 z-30 h-14 bg-[#FFFFFF] border-b border-[#E2E8F0] px-4 lg:px-8 flex items-center justify-between gap-3">
+        {/* Left: Clean Store Brand Title */}
+        <div className="min-w-0 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#FEF3C7] text-[#B45309] flex items-center justify-center font-bold text-xs shrink-0">
+            ERP
           </div>
+          <h1 className="text-sm sm:text-base font-bold tracking-tight text-[#0F172A] truncate">
+            {t.appTitle}
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {currentUser && (
-            <button
-              type="button"
-              onClick={() => setIsAdminModalOpen(true)}
-              aria-label="Open Users and Categories Administration"
-              className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#F6F5F1] text-[#14171A] hover:bg-[#ECEAE3] transition-colors flex items-center gap-1.5"
-            >
-              {currentUser.role === 'admin' ? (
-                <ShieldCheck className="w-3.5 h-3.5 text-[#B84A14]" />
-              ) : (
-                <Settings className="w-3.5 h-3.5 text-[#4A5056]" />
-              )}
-              <span className="hidden sm:inline font-semibold">
-                {currentUser.displayName}
-              </span>
-              <span className="text-[11px] uppercase text-[#6E757C]">
-                ({currentUser.role})
-              </span>
-            </button>
-          )}
-
+        {/* Right: Uncrowded Actions (Compact Account & Settings Menu) */}
+        <div className="flex items-center gap-2 shrink-0 relative">
           <button
             type="button"
             onClick={() => void refreshState()}
             disabled={isLoading}
             aria-label={t.shell.refreshState}
-            className="min-h-[38px] px-3 py-1.5 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            className="min-h-[38px] min-w-[38px] px-2.5 py-1.5 text-xs font-medium rounded-lg border border-[#E2E8F0] bg-[#FFFFFF] text-[#475569] hover:bg-[#F8FAFC] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${
-                isLoading ? 'animate-spin text-[#B84A14]' : 'text-[#4A5056]'
+                isLoading ? 'animate-spin text-[#D97706]' : 'text-[#475569]'
               }`}
             />
-            <span className="hidden lg:inline">{t.shell.refreshState}</span>
+            <span className="hidden md:inline">{t.shell.refreshState}</span>
           </button>
-
-          {/* Segmented Language Control */}
-          <div
-            role="group"
-            aria-label={t.languageLabel}
-            className="flex items-center gap-0.5 p-1 bg-[#ECEAE3] rounded-md border border-[#DCD9D0]"
-          >
-            {LANGUAGE_OPTIONS.map((opt) => {
-              const isActive = language === opt.code;
-              return (
-                <button
-                  key={opt.code}
-                  type="button"
-                  aria-label={opt.ariaLabel}
-                  aria-pressed={isActive}
-                  onClick={() => setLanguage(opt.code)}
-                  className={`min-h-[32px] px-2 py-1 text-xs font-semibold rounded transition-colors ${
-                    isActive
-                      ? 'bg-[#B84A14] text-[#FFFFFF]'
-                      : 'text-[#4A5056] hover:text-[#14171A]'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
 
           {currentUser && (
             <button
               type="button"
-              onClick={() => void logout()}
-              aria-label="Sign out"
-              className="min-h-[38px] px-2.5 py-1.5 text-xs font-semibold rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#B91C1C] hover:bg-[#FEF2F2] transition-colors flex items-center gap-1"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              aria-label="Open Account and Settings Menu"
+              aria-expanded={isMenuOpen}
+              className="min-h-[38px] px-2.5 py-1.5 text-xs font-semibold rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:bg-[#F1F5F9] transition-colors flex items-center gap-2"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="w-5 h-5 rounded-full bg-[#D97706] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                {currentUser.displayName.charAt(0).toUpperCase()}
+              </span>
+              <span className="hidden sm:inline max-w-[140px] truncate">
+                {currentUser.displayName}
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#B45309]">
+                {activeLangObj.label}
+              </span>
             </button>
+          )}
+
+          {/* Compact Account, Language & Admin Dropdown Menu */}
+          {isMenuOpen && currentUser && (
+            <div className="absolute right-0 top-12 w-64 bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl shadow-lg p-3 z-50 space-y-3">
+              <div className="pb-2.5 border-b border-[#E2E8F0]">
+                <p className="text-xs font-bold text-[#0F172A] truncate">
+                  {currentUser.displayName}
+                </p>
+                <p className="text-[11px] text-[#64748B] truncate">
+                  @{currentUser.username} · {currentUser.role.toUpperCase()}
+                </p>
+              </div>
+
+              {/* Language Switcher inside Menu */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold text-[#64748B] flex items-center gap-1">
+                  <Globe className="w-3 h-3" />
+                  <span>{t.languageLabel}</span>
+                </p>
+                <div className="grid grid-cols-3 gap-1 bg-[#F1F5F9] p-1 rounded-lg">
+                  {LANGUAGE_OPTIONS.map((opt) => {
+                    const isActive = language === opt.code;
+                    return (
+                      <button
+                        key={opt.code}
+                        type="button"
+                        onClick={() => {
+                          setLanguage(opt.code);
+                          setIsMenuOpen(false);
+                        }}
+                        className={`min-h-[32px] px-2 py-1 text-xs font-semibold rounded-md transition-colors ${
+                          isActive
+                            ? 'bg-[#FFFFFF] text-[#B45309] shadow-xs'
+                            : 'text-[#475569] hover:text-[#0F172A]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1 pt-1 border-t border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsAdminModalOpen(true);
+                  }}
+                  className="w-full min-h-[38px] px-2.5 py-1.5 text-xs font-medium rounded-lg text-[#0F172A] hover:bg-[#F8FAFC] flex items-center gap-2"
+                >
+                  {currentUser.role === 'admin' ? (
+                    <ShieldCheck className="w-4 h-4 text-[#D97706]" />
+                  ) : (
+                    <Settings className="w-4 h-4 text-[#475569]" />
+                  )}
+                  <span>Users & Categories</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    void logout();
+                  }}
+                  className="w-full min-h-[38px] px-2.5 py-1.5 text-xs font-semibold rounded-lg text-[#DC2626] hover:bg-[#FEE2E2]/50 flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </header>

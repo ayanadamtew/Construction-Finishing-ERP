@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants/erp_constants.dart';
-import 'l10n/erp_localizations.dart';
+import 'core/theme/erp_theme.dart';
 import 'presentation/providers/erp_providers.dart';
-import 'presentation/screens/admin_management_sheet.dart';
 import 'presentation/screens/dashboard_screen.dart';
-import 'presentation/screens/history_screen.dart';
+import 'presentation/screens/inventory_screen.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/materials_screen.dart';
+import 'presentation/screens/more_screen.dart';
 import 'presentation/screens/sales_pos_screen.dart';
-import 'presentation/screens/stock_audit_screen.dart';
-import 'presentation/screens/stock_in_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,177 +29,211 @@ class SenayConstructionErpApp extends ConsumerWidget {
     final i18n = viewState.i18n;
     final currentUser = viewState.currentUser;
 
-    final screens = const [
+    // 5-Tab Simplified Mobile Navigation Architecture:
+    // 0: Dashboard
+    // 1: Materials
+    // 2: Sales
+    // 3: Inventory (Stock-In & Stock Audit)
+    // 4: More (Transaction History, Reports, Settings, User Management)
+    const screens = [
       DashboardScreen(),
       MaterialsScreen(),
       SalesPosScreen(),
-      StockInScreen(),
-      StockAuditScreen(),
-      HistoryScreen(),
+      InventoryScreen(),
+      MoreScreen(),
     ];
+
+    final safeTabIndex = viewState.activeTabIndex.clamp(0, screens.length - 1);
 
     return MaterialApp(
       title: i18n.t('appTitle'),
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: ErpColors.bgPrimary,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: ErpColors.accentTerracotta,
-          surface: ErpColors.surfaceCard,
-        ),
-      ),
+      theme: ErpTheme.lightTheme,
       home: currentUser == null
           ? const LoginScreen()
-          : Builder(
-              builder: (scaffoldContext) => Scaffold(
-                appBar: AppBar(
-                  backgroundColor: ErpColors.textPrimary,
-                  foregroundColor: Colors.white,
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+          : Scaffold(
+              appBar: AppBar(
+                titleSpacing: 16,
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: ErpColors.primaryLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.architecture_rounded,
+                        size: 18,
+                        color: ErpColors.primaryDark,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
                         i18n.t('appTitle'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: ErpColors.textPrimary,
                         ),
                       ),
-                      Text(
-                        '${currentUser.fullName} (${currentUser.role.code.toUpperCase()})',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFFD6D3CD),
+                    ),
+                  ],
+                ),
+                actions: [
+                  // Compact Profile / Account Menu Trigger (replaces crowded header buttons)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: () => controller.openMoreSubTab(2),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
                         ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    if (currentUser.role == UserRole.admin)
-                      IconButton(
-                        tooltip: i18n.t('btnAdminPanel'),
-                        icon: const Icon(
-                          Icons.admin_panel_settings_outlined,
-                          size: 20,
+                        decoration: BoxDecoration(
+                          color: ErpColors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: ErpColors.borderSubtle),
                         ),
-                        onPressed: () =>
-                            AdminManagementSheet.show(scaffoldContext),
-                      ),
-                    // Persistent Trilingual Switcher (EN | አማ | OM)
-                    Row(
-                      children: AppLanguage.values.map((lang) {
-                        final active = viewState.language == lang;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: InkWell(
-                            onTap: () => controller.setLanguage(lang),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? ErpColors.accentTerracotta
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: active
-                                      ? ErpColors.accentTerracotta
-                                      : const Color(0xFF57534E),
-                                ),
-                              ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 10,
+                              backgroundColor: ErpColors.primary,
                               child: Text(
-                                lang.shortBadge,
+                                currentUser.fullName.isNotEmpty
+                                    ? currentUser.fullName[0].toUpperCase()
+                                    : 'U',
                                 style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    IconButton(
-                      tooltip: i18n.t('btnSignOut'),
-                      icon: const Icon(Icons.logout, size: 19),
-                      onPressed: () => controller.logout(),
-                    ),
-                  ],
-                ),
-                body: Column(
-                  children: [
-                    if (viewState.bannerMessage != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        color: viewState.isBannerError
-                            ? ErpColors.statusDangerBg
-                            : ErpColors.statusSuccessBg,
-                        child: Row(
-                          children: [
-                            Expanded(
+                            const SizedBox(width: 6),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 92),
                               child: Text(
-                                viewState.bannerMessage!,
-                                style: TextStyle(
+                                currentUser.username,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: viewState.isBannerError
-                                      ? ErpColors.statusDanger
-                                      : ErpColors.statusSuccess,
+                                  fontWeight: FontWeight.w600,
+                                  color: ErpColors.textPrimary,
                                 ),
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 16),
-                              onPressed: controller.clearBanner,
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 16,
+                              color: ErpColors.textSecondary,
                             ),
                           ],
                         ),
                       ),
-                    Expanded(
-                      child: IndexedStack(
-                        index: viewState.activeTabIndex,
-                        children: screens,
+                    ),
+                  ),
+                ],
+                bottom: const PreferredSize(
+                  preferredSize: Size.fromHeight(1),
+                  child: Divider(height: 1, color: ErpColors.borderSubtle),
+                ),
+              ),
+              body: Column(
+                children: [
+                  if (viewState.bannerMessage != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      color: viewState.isBannerError
+                          ? ErpColors.statusDangerBg
+                          : ErpColors.statusSuccessBg,
+                      child: Row(
+                        children: [
+                          Icon(
+                            viewState.isBannerError
+                                ? Icons.error_outline_rounded
+                                : Icons.check_circle_outline_rounded,
+                            size: 16,
+                            color: viewState.isBannerError
+                                ? ErpColors.statusDanger
+                                : ErpColors.statusSuccess,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              viewState.bannerMessage!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: viewState.isBannerError
+                                    ? ErpColors.statusDanger
+                                    : ErpColors.statusSuccess,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.close_rounded, size: 16),
+                            onPressed: controller.clearBanner,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  Expanded(
+                    child: IndexedStack(
+                      index: safeTabIndex,
+                      children: screens,
+                    ),
+                  ),
+                ],
+              ),
+              bottomNavigationBar: Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: ErpColors.borderSubtle),
+                  ),
                 ),
-                bottomNavigationBar: NavigationBar(
-                  selectedIndex: viewState.activeTabIndex,
+                child: NavigationBar(
+                  selectedIndex: safeTabIndex,
                   onDestinationSelected: controller.setActiveTab,
-                  backgroundColor: ErpColors.surfaceCard,
-                  indicatorColor: const Color(0xFFFDE68A),
                   destinations: [
                     NavigationDestination(
-                      icon: const Icon(Icons.dashboard_outlined),
+                      icon: const Icon(Icons.grid_view_outlined),
+                      selectedIcon: const Icon(Icons.grid_view_rounded),
                       label: i18n.t('navDashboard'),
                     ),
                     NavigationDestination(
-                      icon: const Icon(Icons.category_outlined),
+                      icon: const Icon(Icons.inventory_2_outlined),
+                      selectedIcon: const Icon(Icons.inventory_2_rounded),
                       label: i18n.t('navMaterials'),
                     ),
                     NavigationDestination(
                       icon: const Icon(Icons.point_of_sale_outlined),
-                      label: i18n.t('navSalesPos'),
+                      selectedIcon: const Icon(Icons.point_of_sale_rounded),
+                      label: i18n.t('navSales'),
                     ),
                     NavigationDestination(
-                      icon: const Icon(Icons.local_shipping_outlined),
-                      label: i18n.t('navStockIn'),
+                      icon: const Icon(Icons.warehouse_outlined),
+                      selectedIcon: const Icon(Icons.warehouse_rounded),
+                      label: i18n.t('navInventory'),
                     ),
                     NavigationDestination(
-                      icon: const Icon(Icons.fact_check_outlined),
-                      label: i18n.t('navAudit'),
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.history_outlined),
-                      label: i18n.t('navHistory'),
+                      icon: const Icon(Icons.more_horiz_rounded),
+                      selectedIcon: const Icon(Icons.more_horiz_rounded),
+                      label: i18n.t('navMore'),
                     ),
                   ],
                 ),

@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/erp_constants.dart';
 import '../../domain/models/erp_models.dart';
 import '../providers/erp_providers.dart';
+import '../widgets/erp_components.dart';
 
-/// `SCR-05` — Supplier Stock-In & Weighted-Average Cost Calculator (`BR-006`)
+/// `SCR-05` — Redesigned Supplier Stock-In & Weighted-Average Cost Calculator (`BR-006`)
 class StockInScreen extends ConsumerStatefulWidget {
   const StockInScreen({super.key});
 
@@ -36,7 +37,9 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
         .toList();
 
     final selectedMat = materials
-        .where((m) => m.id == (_selectedMaterialId ?? materials.firstOrNull?.id))
+        .where(
+          (m) => m.id == (_selectedMaterialId ?? materials.firstOrNull?.id),
+        )
         .firstOrNull;
 
     if (_selectedMaterialId == null && selectedMat != null) {
@@ -52,24 +55,19 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
     final previewNewUnitCost = newStock > 0 && qtyAdded > 0
         ? round2(((prevStock * prevCost) + (qtyAdded * purchaseCost)) / newStock)
         : prevCost;
+    final unitStr =
+        selectedMat != null ? i18n.unitLabel(selectedMat.unit.code) : '';
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       children: [
-        Text(
-          i18n.t('stockInTitle'),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: ErpColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
+        ErpSectionHeader(title: i18n.t('stockInTitle')),
+        const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: ErpColors.surfaceCard,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: ErpColors.borderSubtle),
           ),
           child: Column(
@@ -80,14 +78,13 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: i18n.t('stockInSelectMaterial'),
-                  border: const OutlineInputBorder(),
                 ),
                 items: materials
                     .map(
                       (m) => DropdownMenuItem(
                         value: m.id,
                         child: Text(
-                          '${m.name} (${formatQty(m.currentStock)} ${i18n.unitLabel(m.unit.code)} @ ${formatETB(m.unitCost)})',
+                          '${m.name} (${formatQty(m.currentStock)} ${i18n.unitLabel(m.unit.code)})',
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -108,47 +105,39 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: ErpInputField(
                       controller: _qtyCtrl,
-                      onChanged: (_) => setState(() {}),
+                      label: i18n.t('stockInQuantityAdded'),
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: i18n.t('stockInQuantityAdded'),
-                        border: const OutlineInputBorder(),
-                      ),
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: TextField(
+                    child: ErpInputField(
                       controller: _costCtrl,
-                      onChanged: (_) => setState(() {}),
+                      label: i18n.t('stockInUnitPurchaseCost'),
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: i18n.t('stockInUnitPurchaseCost'),
-                        border: const OutlineInputBorder(),
-                      ),
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              TextField(
+              ErpInputField(
                 controller: _noteCtrl,
-                decoration: InputDecoration(
-                  labelText: i18n.t('stockInSupplierNote'),
-                  border: const OutlineInputBorder(),
-                ),
+                label: i18n.t('stockInSupplierNote'),
+                prefixIcon: Icons.local_shipping_outlined,
               ),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: ErpColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: ErpColors.borderSubtle),
+                  color: ErpColors.primarySoft,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: ErpColors.primaryLight),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,35 +145,62 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
                     Text(
                       i18n.t('stockInFormulaPreview'),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: ErpColors.textSecondary,
+                        color: ErpColors.primaryDark,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${formatQty(prevStock)} → ${formatQty(newStock)} ${selectedMat != null ? i18n.unitLabel(selectedMat.unit.code) : ''}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          i18n.t('lblStock'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ErpColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${formatQty(prevStock)} → ${formatQty(newStock)} $unitStr',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: ErpColors.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${formatETB(prevCost)} → ${formatETB(previewNewUnitCost)}',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: ErpColors.accentTerracotta,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          i18n.t('lblCost'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ErpColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${formatETB(prevCost)} → ${formatETB(previewNewUnitCost)}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: ErpColors.primaryDark,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 14),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ErpColors.accentTerracotta,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(50),
-                ),
+              ErpButton(
+                label: i18n.t('btnRecordStockIn'),
+                icon: Icons.south_west_rounded,
+                variant: ErpButtonVariant.primary,
+                isFullWidth: true,
                 onPressed: selectedMat == null
                     ? null
                     : () async {
@@ -202,11 +218,6 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
                           _noteCtrl.clear();
                         }
                       },
-                icon: const Icon(Icons.inventory_2_outlined),
-                label: Text(
-                  i18n.t('btnRecordStockIn'),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
               ),
             ],
           ),

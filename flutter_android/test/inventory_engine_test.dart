@@ -603,5 +603,28 @@ void main() {
       expect(controller.state.companionSyncEnabled, false);
       expect(repo.syncWithCompanionServer, false);
     });
+
+    test('supports 5-tab navigation helpers (Inventory and More sub-tabs) and concise trilingual labels', () {
+      final repo = ErpRepository();
+      final controller = ErpController(repo);
+
+      controller.openInventorySubTab(1);
+      expect(controller.state.activeTabIndex, 3);
+      expect(controller.state.inventorySubTab, 1);
+
+      controller.openMoreSubTab(2);
+      expect(controller.state.activeTabIndex, 4);
+      expect(controller.state.moreSubTab, 2);
+
+      for (final lang in AppLanguage.values) {
+        final i18n = ErpLocalizations(lang);
+        expect(i18n.t('navDashboard').isNotEmpty, isTrue);
+        expect(i18n.t('navMaterials').isNotEmpty, isTrue);
+        expect(i18n.t('navSales').isNotEmpty, isTrue);
+        expect(i18n.t('navInventory').isNotEmpty, isTrue);
+        expect(i18n.t('navMore').isNotEmpty, isTrue);
+      }
+    });
   });
 }
+

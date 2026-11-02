@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/erp_constants.dart';
 import '../../l10n/erp_localizations.dart';
 import '../providers/erp_providers.dart';
+import '../widgets/erp_components.dart';
 
-/// `SCR-00` — Pre-Registered User Login Screen (`FR-021`–`FR-025`, `BR-009`).
-/// Strictly enforces pre-registered credentials with NO public sign-up option.
+/// `SCR-00` — Redesigned Pre-Registered User Login Screen
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -67,50 +67,78 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       backgroundColor: ErpColors.bgPrimary,
       appBar: AppBar(
-        backgroundColor: ErpColors.textPrimary,
-        foregroundColor: Colors.white,
-        title: Text(
-          i18n.t('appTitle'),
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        backgroundColor: ErpColors.surfaceCard,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: ErpColors.primaryLight,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.architecture_rounded,
+                size: 18,
+                color: ErpColors.primaryDark,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                i18n.t('appTitle'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: ErpColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: Row(
-              children: AppLanguage.values.map((lang) {
-                final active = viewState.language == lang;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: InkWell(
-                    onTap: () => controller.setLanguage(lang),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? ErpColors.accentTerracotta
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: active
-                              ? ErpColors.accentTerracotta
-                              : const Color(0xFF57534E),
-                        ),
-                      ),
-                      child: Text(
-                        lang.shortBadge,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
+          PopupMenuButton<AppLanguage>(
+            tooltip: i18n.t('languageSettingTitle'),
+            onSelected: controller.setLanguage,
+            itemBuilder: (_) => AppLanguage.values
+                .map(
+                  (lang) => PopupMenuItem(
+                    value: lang,
+                    child: Text('${lang.shortBadge} — ${lang.nativeName}'),
+                  ),
+                )
+                .toList(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: ErpColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: ErpColors.borderSubtle),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.language_rounded,
+                      size: 15,
+                      color: ErpColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      viewState.language.shortBadge,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ErpColors.textPrimary,
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -119,13 +147,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: ErpColors.surfaceCard,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: ErpColors.borderStrong),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: ErpColors.borderSubtle),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -136,12 +164,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: ErpColors.accentTerracotta,
-                          borderRadius: BorderRadius.circular(6),
+                          color: ErpColors.primaryLight,
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
-                          Icons.lock_outline,
-                          color: Colors.white,
+                          Icons.lock_outline_rounded,
+                          color: ErpColors.primaryDark,
                           size: 22,
                         ),
                       ),
@@ -153,7 +181,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Text(
                               i18n.t('loginTitle'),
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 16.5,
                                 fontWeight: FontWeight.w800,
                                 color: ErpColors.textPrimary,
                               ),
@@ -177,13 +205,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: ErpColors.statusDangerBg,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: ErpColors.statusDanger),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         children: [
                           const Icon(
-                            Icons.error_outline,
+                            Icons.error_outline_rounded,
                             size: 18,
                             color: ErpColors.statusDanger,
                           ),
@@ -193,7 +220,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               _localError!,
                               style: const TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 color: ErpColors.statusDanger,
                               ),
                             ),
@@ -201,62 +228,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                   ],
-                  TextField(
+                  ErpInputField(
                     controller: _usernameCtrl,
-                    autocorrect: false,
+                    label: i18n.t('loginUsernameOrEmail'),
+                    prefixIcon: Icons.person_outline_rounded,
                     textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: i18n.t('loginUsernameOrEmail'),
-                      prefixIcon: const Icon(Icons.person_outline, size: 20),
-                      border: const OutlineInputBorder(),
-                    ),
                   ),
-                  const SizedBox(height: 14),
-                  TextField(
+                  const SizedBox(height: 12),
+                  ErpInputField(
                     controller: _passwordCtrl,
+                    label: i18n.t('loginPassword'),
+                    prefixIcon: Icons.key_outlined,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submitLogin(),
-                    decoration: InputDecoration(
-                      labelText: i18n.t('loginPassword'),
-                      prefixIcon: const Icon(Icons.key_outlined, size: 20),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        tooltip: _obscurePassword
-                            ? 'Show password'
-                            : 'Hide password',
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 19,
+                        color: ErpColors.textMuted,
                       ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ErpColors.accentTerracotta,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(50),
-                    ),
+                  const SizedBox(height: 18),
+                  ErpButton(
+                    label: i18n.t('btnSignIn'),
+                    icon: Icons.login_rounded,
+                    variant: ErpButtonVariant.primary,
+                    isFullWidth: true,
                     onPressed: _isSubmitting ? null : _submitLogin,
-                    icon: const Icon(Icons.login, size: 18),
-                    label: Text(
-                      i18n.t('btnSignIn'),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
                   ),
                 ],
               ),

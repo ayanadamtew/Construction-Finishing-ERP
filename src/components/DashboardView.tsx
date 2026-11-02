@@ -4,41 +4,27 @@ import {
   ArrowDownToLine,
   ArrowRight,
   CheckCircle2,
-  ClipboardCheck,
   Package,
+  Receipt,
   ShoppingCart,
+  TrendingUp,
 } from 'lucide-react';
 import { useErpStore } from '../context/ErpContext';
-import { round2 } from '../domain/inventoryEngine';
 import {
   formatETB,
   formatQuantity,
   getCategoryLabel,
 } from '../i18n/translations';
-import { ALLOWED_CATEGORIES } from '../types/erp';
-
-interface RecentActivityEntry {
-  id: string;
-  kind: 'sale' | 'stock-in' | 'audit';
-  createdAt: string;
-  title: string;
-  subtitle: string;
-  rightPrimary: string;
-  rightSecondary: string;
-  isReversed?: boolean;
-}
 
 export const DashboardView: React.FC = () => {
   const {
     state,
     t,
-    isLoading,
     setActiveTab,
-    addToPosCart,
     openStockInForMaterial,
   } = useErpStore();
 
-  const { summary, materials, sales, stockIns, audits, categories } = state;
+  const { summary, materials, sales, categories } = state;
 
   const activeMaterials = useMemo(
     () => materials.filter((m) => !m.isArchived),
@@ -51,534 +37,264 @@ export const DashboardView: React.FC = () => {
     [activeMaterials]
   );
 
-  // Inventory Valuation by Category Breakdown
-  const categoryBreakdown = useMemo(() => {
-    const categoryIds =
-      categories && categories.length > 0
-        ? categories.map((c) => c.id)
-        : [...ALLOWED_CATEGORIES];
-
-    return categoryIds
-      .map((category) => {
-        const items = activeMaterials.filter((m) => m.category === category);
-        const costValue = round2(
-          items.reduce((sum, m) => sum + m.currentStock * m.unitCost, 0)
-        );
-        const retailValue = round2(
-          items.reduce(
-            (sum, m) => sum + m.currentStock * m.defaultSellingPrice,
-            0
-          )
-        );
-        return {
-          category,
-          count: items.length,
-          costValue,
-          retailValue,
-        };
-      })
-      .filter((entry) => entry.count > 0);
-  }, [activeMaterials, categories]);
-
-  // Recent 5 Store Transactions across Sales, Stock-Ins, and Audits (SCR-01)
-  const recentActivities = useMemo<RecentActivityEntry[]>(() => {
-    const entries: RecentActivityEntry[] = [];
-
-    for (const s of sales) {
-      entries.push({
-        id: s.id,
-        kind: 'sale',
-        createdAt: s.createdAt,
-        title: `${t.auditLog.saleBadgeLabel}${
-          s.isReversed ? ' [REVERSED]' : ''
-        } · ${s.items.map((i) => i.materialName).join(', ')}`,
-        subtitle: s.customerNote || t.auditLog.saleNoteFallback,
-        rightPrimary: formatETB(s.totalRevenue),
-        rightSecondary: `${t.pos.estimatedProfitLabel}: ${formatETB(
-          s.totalProfit
-        )}`,
-        isReversed: s.isReversed,
-      });
-    }
-
-    for (const st of stockIns) {
-      entries.push({
-        id: st.id,
-        kind: 'stock-in',
-        createdAt: st.createdAt,
-        title: `${t.auditLog.stockInBadgeLabel}${
-          st.isReversed ? ' [REVERSED]' : ''
-        } · ${st.materialName}`,
-        subtitle: st.supplierNote || t.stockIn.supplierNoteFallback,
-        rightPrimary: `+${formatQuantity(st.quantityAdded)} ${t.units[st.unit]}`,
-        rightSecondary: formatETB(st.totalCost),
-        isReversed: st.isReversed,
-      });
-    }
-
-    for (const a of audits) {
-      entries.push({
-        id: a.id,
-        kind: 'audit',
-        createdAt: a.createdAt,
-        title: `${t.auditLog.auditBadgeLabel}${
-          a.isReversed ? ' [REVERSED]' : ''
-        } (${a.adjustments.length})`,
-        subtitle: a.note || t.auditLog.auditNoteFallback,
-        rightPrimary: a.adjustments
-          .map(
-            (adj) =>
-              `${
-                adj.variance > 0
-                  ? `+${formatQuantity(adj.variance)}`
-                  : formatQuantity(adj.variance)
-              } ${t.units[adj.unit]}`
-          )
-          .join(', '),
-        rightSecondary: new Date(a.createdAt).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        isReversed: a.isReversed,
-      });
-    }
-
-    return entries
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(0, 5);
-  }, [sales, stockIns, audits, t]);
-
-  const activeSalesCount = useMemo(
-    () => sales.filter((s) => !s.isReversed).length,
+  const activeSales = useMemo(
+    () => sales.filter((s) => !s.isReversed),
     [sales]
   );
 
+  const recentSales = useMemo(() => activeSales.slice(0, 4), [activeSales]);
+  const displayedLowStock = useMemo(
+    () => lowStockMaterials.slice(0, 4),
+    [lowStockMaterials]
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Top Route Header & Quick Operation Bar (SCR-01) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#DCD9D0] pb-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-[#14171A]">
-            {t.nav.dashboard} — {t.shell.architectureInitialized}
-          </h2>
-          <p className="text-sm text-[#4A5056] mt-0.5">
-            {t.shell.moduleReadyDescription}
-          </p>
-        </div>
-
-        {/* Quick Operation Bar */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('pos')}
-            className="min-h-[42px] px-3.5 py-2 text-xs font-semibold rounded-md bg-[#B84A14] text-[#FFFFFF] hover:bg-[#963B0E] transition-colors flex items-center gap-1.5"
-          >
-            <ShoppingCart className="w-3.5 h-3.5" />
-            <span>{t.shell.openPos}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('stock-in')}
-            className="min-h-[42px] px-3.5 py-2 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] transition-colors flex items-center gap-1.5"
-          >
-            <ArrowDownToLine className="w-3.5 h-3.5 text-[#B84A14]" />
-            <span>{t.shell.openStockIn}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('audit-log')}
-            className="min-h-[42px] px-3.5 py-2 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] transition-colors flex items-center gap-1.5"
-          >
-            <ClipboardCheck className="w-3.5 h-3.5 text-[#4A5056]" />
-            <span>{t.shell.openAudit}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('materials')}
-            className="min-h-[42px] px-3.5 py-2 text-xs font-medium rounded-md border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] transition-colors flex items-center gap-1.5"
-          >
-            <Package className="w-3.5 h-3.5 text-[#4A5056]" />
-            <span>{t.shell.openMaterials}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 4-Column KPI Summary Grid (FR-020) */}
+    <div className="space-y-5">
+      {/* 1. Compact 2x2 / 4-Column Summary Indicators */}
       <section
         aria-label="Store KPI Summary"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3"
       >
-        <div className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg p-4">
-          <p className="text-xs font-medium text-[#4A5056]">
-            {t.kpis.totalRevenue}
+        <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-3.5">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#475569]">
+            <span className="p-1.5 rounded-lg bg-[#FEF3C7] text-[#D97706]">
+              <Receipt className="w-3.5 h-3.5" />
+            </span>
+            <span className="truncate">{t.kpis.completedSales}</span>
+          </div>
+          <p className="mt-2 text-lg sm:text-xl font-extrabold font-mono-tabular text-[#0F172A] truncate">
+            {activeSales.length}
           </p>
-          <p className="mt-1.5 text-xl font-bold font-mono-tabular text-[#14171A]">
+          <p className="mt-0.5 text-[11px] text-[#64748B] truncate">
+            {t.kpis.totalProfit}: {formatETB(summary.totalProfit)}
+          </p>
+        </div>
+
+        <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-3.5">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#475569]">
+            <span className="p-1.5 rounded-lg bg-[#DCFCE7] text-[#16A34A]">
+              <TrendingUp className="w-3.5 h-3.5" />
+            </span>
+            <span className="truncate">{t.kpis.totalRevenue}</span>
+          </div>
+          <p className="mt-2 text-lg sm:text-xl font-extrabold font-mono-tabular text-[#0F172A] truncate">
             {formatETB(summary.totalRevenue)}
           </p>
-          <p className="mt-1 text-xs text-[#6E757C] font-mono-tabular">
-            {t.kpis.completedSales}: {activeSalesCount}
+          <p className="mt-0.5 text-[11px] text-[#16A34A] font-semibold truncate">
+            +{formatETB(summary.totalProfit)}
           </p>
         </div>
 
-        <div className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg p-4">
-          <p className="text-xs font-medium text-[#4A5056]">
-            {t.kpis.totalProfit}
+        <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-3.5">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#475569]">
+            <span className="p-1.5 rounded-lg bg-[#F1F5F9] text-[#0F172A]">
+              <Package className="w-3.5 h-3.5" />
+            </span>
+            <span className="truncate">{t.kpis.registeredMaterials}</span>
+          </div>
+          <p className="mt-2 text-lg sm:text-xl font-extrabold font-mono-tabular text-[#0F172A] truncate">
+            {activeMaterials.length}
           </p>
-          <p className="mt-1.5 text-xl font-bold font-mono-tabular text-[#166534]">
-            {formatETB(summary.totalProfit)}
-          </p>
-          <p className="mt-1 text-xs text-[#6E757C]">
-            {t.currencyLabel} · {t.shell.syncStatusConnected}
-          </p>
-        </div>
-
-        <div className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg p-4">
-          <p className="text-xs font-medium text-[#4A5056]">
-            {t.kpis.inventoryCostValue}
-          </p>
-          <p className="mt-1.5 text-xl font-bold font-mono-tabular text-[#14171A]">
+          <p className="mt-0.5 text-[11px] text-[#64748B] font-mono-tabular truncate">
             {formatETB(summary.inventoryCostValue)}
           </p>
-          <p className="mt-1 text-xs text-[#6E757C] font-mono-tabular">
-            {t.kpis.inventoryRetailValue}:{' '}
-            {formatETB(summary.inventoryRetailValue)}
-          </p>
         </div>
 
-        <div className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg p-4">
-          <p className="text-xs font-medium text-[#4A5056]">
-            {t.kpis.lowStockAlerts}
-          </p>
+        <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-3.5">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#475569]">
+            <span
+              className={`p-1.5 rounded-lg ${
+                summary.lowStockCount > 0
+                  ? 'bg-[#FEF3C7] text-[#D97706]'
+                  : 'bg-[#DCFCE7] text-[#16A34A]'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+            </span>
+            <span className="truncate">{t.kpis.lowStockAlerts}</span>
+          </div>
           <p
-            className={`mt-1.5 text-xl font-bold font-mono-tabular ${
-              summary.lowStockCount > 0 ? 'text-[#9A3412]' : 'text-[#166534]'
+            className={`mt-2 text-lg sm:text-xl font-extrabold font-mono-tabular truncate ${
+              summary.lowStockCount > 0 ? 'text-[#D97706]' : 'text-[#16A34A]'
             }`}
           >
             {summary.lowStockCount}
           </p>
-          <p className="mt-1 text-xs text-[#6E757C] font-mono-tabular">
-            {t.kpis.registeredMaterials}: {activeMaterials.length} ·{' '}
-            {t.kpis.groundAudits}: {audits.length}
+          <p className="mt-0.5 text-[11px] text-[#64748B] truncate">
+            {summary.lowStockCount > 0
+              ? t.shell.lowStockFlag
+              : t.shell.inStockFlag}
           </p>
         </div>
       </section>
 
-      {/* Main 2-Column Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* 1. Low-Stock & Restock Attention List */}
-          <section
-            aria-label={t.dashboard.lowStockHeading}
-            className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg overflow-hidden"
-          >
-            <div className="px-4 sm:px-5 py-3.5 border-b border-[#ECEAE3] flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-base font-semibold text-[#14171A] flex items-center gap-2">
-                  <AlertTriangle
-                    className={`w-4 h-4 ${
-                      lowStockMaterials.length > 0
-                        ? 'text-[#9A3412]'
-                        : 'text-[#166534]'
-                    }`}
-                  />
-                  <span>
-                    {t.dashboard.lowStockHeading} ({lowStockMaterials.length})
-                  </span>
-                </h3>
-                <p className="text-xs text-[#4A5056] mt-0.5">
-                  {t.dashboard.lowStockSubtitle}
-                </p>
-              </div>
-            </div>
+      {/* 2. Streamlined Primary Operational Actions */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab('pos')}
+          className="min-h-[46px] px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-[#D97706] text-[#FFFFFF] hover:bg-[#B45309] transition-colors flex items-center justify-center gap-2"
+        >
+          <ShoppingCart className="w-4 h-4 shrink-0" />
+          <span className="truncate">{t.shell.openPos}</span>
+        </button>
 
-            {lowStockMaterials.length === 0 ? (
-              <div className="p-5 flex items-start gap-3 bg-[#F0FDF4]/60">
-                <CheckCircle2 className="w-5 h-5 text-[#166534] shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-semibold text-[#166534]">
-                    {t.dashboard.allStockHealthyTitle}
-                  </h4>
-                  <p className="text-xs text-[#4A5056] mt-0.5">
-                    {t.dashboard.allStockHealthyDescription}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="divide-y divide-[#ECEAE3]">
-                {lowStockMaterials.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FFF7ED]/40 hover:bg-[#FFF7ED] transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <h4 className="text-sm font-semibold text-[#14171A]">
-                          {item.name}
-                        </h4>
-                        <span aria-hidden="true" className="text-[#6E757C]">
-                          ·
-                        </span>
-                        <span className="text-xs font-semibold text-[#9A3412]">
-                          {t.shell.lowStockFlag}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#4A5056] mt-0.5 font-mono-tabular">
-                        {t.shell.stockCol}:{' '}
-                        <strong className="text-[#9A3412]">
-                          {formatQuantity(item.currentStock)}{' '}
-                          {t.units[item.unit]}
-                        </strong>{' '}
-                        · {t.shell.minStockCol}:{' '}
-                        {formatQuantity(item.minStockLevel)}{' '}
-                        {t.units[item.unit]} · {t.shell.costCol}:{' '}
-                        {formatETB(item.unitCost)}
-                      </p>
-                    </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('stock-in')}
+          className="min-h-[46px] px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] text-[#0F172A] hover:bg-[#F8FAFC] transition-colors flex items-center justify-center gap-2"
+        >
+          <ArrowDownToLine className="w-4 h-4 text-[#D97706] shrink-0" />
+          <span className="truncate">{t.shell.openStockIn}</span>
+        </button>
+      </div>
 
-                    <button
-                      type="button"
-                      onClick={() => openStockInForMaterial(item.id)}
-                      aria-label={`${t.dashboard.restockNowBtn} ${item.name}`}
-                      className="min-h-[38px] px-3 py-1.5 text-xs font-semibold rounded-md bg-[#B84A14] text-[#FFFFFF] hover:bg-[#963B0E] transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
-                    >
-                      <ArrowDownToLine className="w-3.5 h-3.5" />
-                      <span>{t.dashboard.restockNowBtn}</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 2. Active Ground-Stock Directory */}
-          <section
-            aria-label={t.dashboard.activeDirectoryHeading}
-            className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg overflow-hidden"
-          >
-            <div className="px-4 sm:px-5 py-3.5 border-b border-[#ECEAE3] flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-base font-semibold text-[#14171A]">
-                  {t.dashboard.activeDirectoryHeading} ({activeMaterials.length})
-                </h3>
-                <p className="text-xs text-[#4A5056] mt-0.5">
-                  {t.dashboard.activeDirectorySubtitle}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab('materials')}
-                className="text-xs font-semibold text-[#B84A14] hover:underline flex items-center gap-1"
-              >
-                <span>{t.shell.openMaterials}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {isLoading ? (
-              <div className="p-6 text-sm text-[#4A5056]">
-                {t.shell.loadingState}
-              </div>
-            ) : (
-              <div className="divide-y divide-[#ECEAE3]">
-                {activeMaterials.map((item) => {
-                  const isLowStock = item.currentStock <= item.minStockLevel;
-                  return (
-                    <div
-                      key={item.id}
-                      className="px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#F6F5F1]/60 transition-colors"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-baseline gap-2">
-                          <h4 className="text-sm font-semibold text-[#14171A]">
-                            {item.name}
-                          </h4>
-                          <span aria-hidden="true" className="text-[#6E757C]">
-                            ·
-                          </span>
-                          <span
-                            className={`text-xs font-medium ${
-                              isLowStock ? 'text-[#9A3412]' : 'text-[#166534]'
-                            }`}
-                          >
-                            {isLowStock
-                              ? t.shell.lowStockFlag
-                              : t.shell.inStockFlag}
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#4A5056] mt-0.5">
-                          {getCategoryLabel(t, item.category, categories)} ·{' '}
-                          {item.specs}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 font-mono-tabular">
-                        <div className="text-right">
-                          <p className="text-[11px] text-[#6E757C]">
-                            {t.shell.priceCol}
-                          </p>
-                          <p className="text-xs font-semibold text-[#14171A]">
-                            {formatETB(item.defaultSellingPrice)}
-                          </p>
-                        </div>
-
-                        <div className="min-w-[88px] text-right">
-                          <p className="text-[11px] text-[#6E757C]">
-                            {t.shell.stockCol}
-                          </p>
-                          <p
-                            className={`text-sm font-bold ${
-                              isLowStock ? 'text-[#9A3412]' : 'text-[#14171A]'
-                            }`}
-                          >
-                            {formatQuantity(item.currentStock)}{' '}
-                            {t.units[item.unit]}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={item.currentStock <= 0}
-                          onClick={() => {
-                            addToPosCart(item.id);
-                            setActiveTab('pos');
-                          }}
-                          aria-label={`${t.dashboard.sellQuickBtn} ${item.name}`}
-                          className="min-h-[36px] px-2.5 py-1 text-xs font-sans font-medium rounded border border-[#DCD9D0] bg-[#FFFFFF] text-[#14171A] hover:bg-[#F6F5F1] flex items-center gap-1 disabled:opacity-45"
-                        >
-                          <ShoppingCart className="w-3.5 h-3.5 text-[#B84A14]" />
-                          <span>{t.dashboard.sellQuickBtn}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </div>
-
-        {/* Right Column (5 cols) */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* 1. Inventory Valuation by Category Breakdown */}
-          <section
-            aria-label={t.dashboard.categoryBreakdownHeading}
-            className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg overflow-hidden"
-          >
-            <div className="px-4 sm:px-5 py-3.5 border-b border-[#ECEAE3]">
-              <h3 className="text-base font-semibold text-[#14171A]">
-                {t.dashboard.categoryBreakdownHeading}
+      {/* 3. Main 2-Column Split: Low-Stock Materials & Recent Sales */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Left: Low-Stock Materials (Limited + View All) */}
+        <section
+          aria-label={t.dashboard.lowStockHeading}
+          className="lg:col-span-6 bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="text-sm font-bold text-[#0F172A] truncate">
+                {t.dashboard.lowStockHeading}
               </h3>
-              <p className="text-xs text-[#4A5056] mt-0.5">
-                {t.dashboard.categoryBreakdownSubtitle}
-              </p>
+              <span
+                className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  lowStockMaterials.length > 0
+                    ? 'bg-[#FEF3C7] text-[#B45309]'
+                    : 'bg-[#DCFCE7] text-[#16A34A]'
+                }`}
+              >
+                {lowStockMaterials.length}
+              </span>
             </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('materials')}
+              className="text-xs font-semibold text-[#D97706] hover:underline flex items-center gap-1 shrink-0"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-            <div className="divide-y divide-[#ECEAE3]">
-              {categoryBreakdown.map((cat) => (
+          {lowStockMaterials.length === 0 ? (
+            <div className="p-5 flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-[#16A34A] shrink-0" />
+              <div>
+                <h4 className="text-xs font-semibold text-[#0F172A]">
+                  {t.dashboard.allStockHealthyTitle}
+                </h4>
+                <p className="text-xs text-[#64748B]">
+                  {t.dashboard.allStockHealthyDescription}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#E2E8F0]">
+              {displayedLowStock.map((item) => (
                 <div
-                  key={cat.category}
-                  className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3"
+                  key={item.id}
+                  className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#F8FAFC] transition-colors"
                 >
-                  <div>
-                    <h4 className="text-sm font-semibold text-[#14171A]">
-                      {getCategoryLabel(t, cat.category, categories)}
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-semibold text-[#0F172A] truncate">
+                      {item.name}
                     </h4>
-                    <p className="text-xs text-[#6E757C] font-mono-tabular">
-                      {cat.count} {t.dashboard.itemsCountLabel}
+                    <p className="text-xs text-[#64748B] truncate mt-0.5">
+                      <span className="font-mono-tabular font-bold text-[#D97706]">
+                        {formatQuantity(item.currentStock)} {t.units[item.unit]}
+                      </span>
+                      {' · '}
+                      <span className="font-mono-tabular">
+                        {t.shell.minStockCol}: {formatQuantity(item.minStockLevel)}
+                      </span>
+                      {' · '}
+                      {getCategoryLabel(t, item.category, categories)}
                     </p>
                   </div>
 
-                  <div className="text-right font-mono-tabular">
-                    <p className="text-xs font-bold text-[#14171A]">
-                      {formatETB(cat.costValue)}
-                    </p>
-                    <p className="text-[11px] text-[#6E757C]">
-                      {t.kpis.inventoryRetailValue}:{' '}
-                      {formatETB(cat.retailValue)}
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openStockInForMaterial(item.id)}
+                    aria-label={`${t.dashboard.restockNowBtn} ${item.name}`}
+                    className="min-h-[34px] px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#FEF3C7] text-[#B45309] hover:bg-[#D97706] hover:text-white transition-colors shrink-0"
+                  >
+                    {t.dashboard.restockNowBtn}
+                  </button>
                 </div>
               ))}
             </div>
-          </section>
+          )}
+        </section>
 
-          {/* 2. Recent Store Activity Feed (Latest 5 Transactions) */}
-          <section
-            aria-label={t.dashboard.recentActivityHeading}
-            className="bg-[#FFFFFF] border border-[#DCD9D0] rounded-lg overflow-hidden"
-          >
-            <div className="px-4 sm:px-5 py-3.5 border-b border-[#ECEAE3] flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-base font-semibold text-[#14171A]">
-                  {t.dashboard.recentActivityHeading}
-                </h3>
-                <p className="text-xs text-[#4A5056] mt-0.5">
-                  {t.dashboard.recentActivitySubtitle}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab('audit-log')}
-                className="text-xs font-semibold text-[#B84A14] hover:underline flex items-center gap-1 shrink-0"
-              >
-                <span>{t.dashboard.viewFullLedgerBtn}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+        {/* Right: Recent Sales (Clean Transaction List + View All) */}
+        <section
+          aria-label={t.dashboard.recentActivityHeading}
+          className="lg:col-span-6 bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl overflow-hidden"
+        >
+          <div className="px-4 py-3 border-b border-[#E2E8F0] flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="text-sm font-bold text-[#0F172A] truncate">
+                {t.dashboard.recentActivityHeading}
+              </h3>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#475569]">
+                {activeSales.length}
+              </span>
             </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('audit-log')}
+              className="text-xs font-semibold text-[#D97706] hover:underline flex items-center gap-1 shrink-0"
+            >
+              <span>{t.dashboard.viewFullLedgerBtn}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-            {recentActivities.length === 0 ? (
-              <div className="p-6 text-center space-y-1.5">
-                <h4 className="text-sm font-semibold text-[#14171A]">
-                  {t.dashboard.noActivityYetTitle}
-                </h4>
-                <p className="text-xs text-[#4A5056]">
-                  {t.dashboard.noActivityYetDescription}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-[#ECEAE3]">
-                {recentActivities.map((act) => (
+          {recentSales.length === 0 ? (
+            <div className="p-6 text-center space-y-1">
+              <h4 className="text-xs font-semibold text-[#0F172A]">
+                {t.dashboard.noActivityYetTitle}
+              </h4>
+              <p className="text-xs text-[#64748B]">
+                {t.dashboard.noActivityYetDescription}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#E2E8F0]">
+              {recentSales.map((sale) => {
+                const dateStr = sale.createdAt.split('T')[0];
+                return (
                   <div
-                    key={act.id}
-                    className={`px-4 sm:px-5 py-3 flex items-center justify-between gap-3 ${
-                      act.isReversed ? 'opacity-75' : ''
-                    }`}
+                    key={sale.id}
+                    className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#F8FAFC] transition-colors"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-[#14171A] truncate">
-                        {act.title}
+                      <p className="text-sm font-semibold text-[#0F172A] truncate">
+                        {sale.customerNote || sale.id}
                       </p>
-                      <p className="text-[11px] text-[#6E757C] truncate">
-                        {act.subtitle}
+                      <p className="text-xs text-[#64748B] truncate mt-0.5">
+                        {sale.id} · {dateStr} · {sale.items.length} item(s)
                       </p>
                     </div>
                     <div className="text-right font-mono-tabular shrink-0">
-                      <p
-                        className={`text-xs font-bold ${
-                          act.isReversed
-                            ? 'text-[#B91C1C] line-through'
-                            : 'text-[#14171A]'
-                        }`}
-                      >
-                        {act.rightPrimary}
+                      <p className="text-sm font-bold text-[#0F172A]">
+                        {formatETB(sale.totalRevenue)}
                       </p>
-                      <p className="text-[11px] text-[#6E757C]">
-                        {act.rightSecondary}
+                      <p className="text-[11px] font-semibold text-[#16A34A]">
+                        +{formatETB(sale.totalProfit)}
                       </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

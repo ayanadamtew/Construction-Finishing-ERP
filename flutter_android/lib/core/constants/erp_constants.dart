@@ -57,24 +57,39 @@ enum UserRole {
 }
 
 
-/// Warm Industrial Ledger Design System palette (`docs/UI_UX_SPEC.md` Section 2)
+/// Modern Minimal Material 3 Design System Palette
 class ErpColors {
-  static const Color bgPrimary = Color(0xFFF6F4F0);
-  static const Color surfaceCard = Color(0xFFFFFFFF);
-  static const Color surfaceElevated = Color(0xFFEDEAE2);
-  static const Color textPrimary = Color(0xFF141413);
-  static const Color textSecondary = Color(0xFF57534E);
-  static const Color textMuted = Color(0xFF78716C);
-  static const Color accentTerracotta = Color(0xFFC85A17);
-  static const Color accentHover = Color(0xFF9A3412);
-  static const Color borderSubtle = Color(0xFFD6D3CD);
-  static const Color borderStrong = Color(0xFFA8A29E);
+  // Primary warm amber/orange accent
+  static const Color primary = Color(0xFFD97706);
+  static const Color primaryDark = Color(0xFFB45309);
+  static const Color primaryLight = Color(0xFFFEF3C7);
+  static const Color primarySoft = Color(0xFFFFFBEB);
 
-  static const Color statusSuccess = Color(0xFF166534);
+  // Neutral surfaces & backgrounds
+  static const Color bgPrimary = Color(0xFFF8FAFC);
+  static const Color surfaceCard = Color(0xFFFFFFFF);
+  static const Color surfaceElevated = Color(0xFFF1F5F9);
+  static const Color surfaceMuted = Color(0xFFF8FAFC);
+
+  // Typography hierarchy
+  static const Color textPrimary = Color(0xFF0F172A);
+  static const Color textSecondary = Color(0xFF475569);
+  static const Color textMuted = Color(0xFF64748B);
+
+  // Backward-compatible aliases
+  static const Color accentTerracotta = primary;
+  static const Color accentHover = primaryDark;
+
+  // Borders & dividers
+  static const Color borderSubtle = Color(0xFFE2E8F0);
+  static const Color borderStrong = Color(0xFFCBD5E1);
+
+  // Semantic statuses
+  static const Color statusSuccess = Color(0xFF16A34A);
   static const Color statusSuccessBg = Color(0xFFDCFCE7);
-  static const Color statusWarning = Color(0xFFB45309);
+  static const Color statusWarning = Color(0xFFD97706);
   static const Color statusWarningBg = Color(0xFFFEF3C7);
-  static const Color statusDanger = Color(0xFFB91C1C);
+  static const Color statusDanger = Color(0xFFDC2626);
   static const Color statusDangerBg = Color(0xFFFEE2E2);
 }
 
