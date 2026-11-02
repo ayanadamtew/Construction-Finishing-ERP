@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.construction.erp">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Optional network permission for syncing with Express /api/* backend when available -->
     <uses-permission android:name="android.permission.INTERNET" />
