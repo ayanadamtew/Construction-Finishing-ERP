@@ -35,9 +35,9 @@ class ErpRepository {
       })> initialize() async {
     try {
       final loadedState = await _sqlite.loadState();
-      final erpState = seedDemoData
+      final ErpState erpState = seedDemoData
           ? loadedState
-          : InventoryEngine.cleanupSampleData(loadedState);
+          : InventoryEngine.cleanupSampleData(loadedState).cleanedState;
       if (!seedDemoData &&
           (erpState.materials.length != loadedState.materials.length ||
               erpState.sales.length != loadedState.sales.length ||

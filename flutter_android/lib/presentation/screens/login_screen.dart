@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/erp_constants.dart';
-import '../../l10n/erp_localizations.dart';
 import '../providers/erp_providers.dart';
 import '../widgets/erp_components.dart';
 

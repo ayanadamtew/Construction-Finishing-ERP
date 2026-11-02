@@ -266,7 +266,8 @@ class _SalesPosScreenState extends ConsumerState<SalesPosScreen> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: selectedMat != null &&
+                key: ValueKey('${_selectedCategory}_${selectedMat?.id}'),
+                initialValue: selectedMat != null &&
                         filteredMaterials.any((m) => m.id == selectedMat.id)
                     ? selectedMat.id
                     : filteredMaterials.firstOrNull?.id,

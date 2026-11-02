@@ -94,7 +94,8 @@ class _StockInScreenState extends ConsumerState<StockInScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<String>(
-                value: selectedMat?.id,
+                key: ValueKey(selectedMat?.id),
+                initialValue: selectedMat?.id,
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: i18n.t('stockInSelectMaterial'),

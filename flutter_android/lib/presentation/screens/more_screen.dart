@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/erp_constants.dart';
 import '../../domain/services/inventory_engine.dart';
-import '../../l10n/erp_localizations.dart';
 import '../providers/erp_providers.dart';
 import '../widgets/erp_components.dart';
 import 'admin_management_sheet.dart';
@@ -613,9 +612,9 @@ class _SettingsSubView extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
+              const Text(
                 ErpAppInfo.appDescription,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   height: 1.4,
                   color: ErpColors.textPrimary,

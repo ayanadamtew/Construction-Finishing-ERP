@@ -175,7 +175,7 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: DropdownButtonFormField<UserRole>(
-                                  value: _selectedRole,
+                                  initialValue: _selectedRole,
                                   isExpanded: true,
                                   decoration: InputDecoration(
                                     labelText: i18n.t('fieldRole'),

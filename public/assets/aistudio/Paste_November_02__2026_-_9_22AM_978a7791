@@ -1,0 +1,343 @@
+┌──(ayuda㉿kali)-[~/…/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android]
+└─$ flutter analyze
+Resolving dependencies... 
+Downloading packages... 
+  clock 1.1.2 (1.1.3 available)
+  flutter_lints 4.0.0 (6.0.0 available)
+  flutter_riverpod 2.6.1 (3.4.3 available)
+  intl 0.20.2 (0.20.3 available)
+  lints 4.0.0 (6.1.0 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.17.0 (1.19.0 available)
+  platform 3.1.6 (3.2.0 available)
+  riverpod 2.6.1 (3.4.3 available)
+  sqflite 2.4.2+1 (2.4.5 available)
+  sqflite_android 2.4.2+3 (2.4.5 available)
+  sqflite_common 2.5.8 (2.5.14 available)
+  sqflite_darwin 2.4.2 (2.4.4+1 available)
+  sqflite_platform_interface 2.4.0 (2.4.3 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  synchronized 3.4.0+1 (3.5.0 available)
+  test_api 0.7.10 (0.7.15 available)
+  vector_math 2.2.0 (2.4.4 available)
+  web 1.1.1 (1.1.2 available)
+Got dependencies!
+20 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing flutter_android...                                            
+
+  error • The getter 'materials' isn't defined for the type 'Object' • lib/data/repositories/erp_repository.dart:42:21 • undefined_getter
+  error • The getter 'sales' isn't defined for the type 'Object' • lib/data/repositories/erp_repository.dart:43:24 • undefined_getter
+  error • The getter 'stockIns' isn't defined for the type 'Object' • lib/data/repositories/erp_repository.dart:44:24 • undefined_getter
+  error • The argument type 'Object' can't be assigned to the parameter type 'ErpState'.  • lib/data/repositories/erp_repository.dart:45:33 •
+         argument_type_not_assignable
+  error • A value of type '({PublicUser? activeUser, Object erpState, List<UserAccount> users})' can't be returned from the method 'initialize' because
+         it has a return type of 'Future<({PublicUser? activeUser, ErpState erpState, List<UserAccount> users})>' •
+         lib/data/repositories/erp_repository.dart:49:14 • return_of_invalid_type
+  error • Undefined class 'AppLanguage' • lib/presentation/providers/erp_providers.dart:14:9 • undefined_class
+  error • Undefined name 'AppLanguage' • lib/presentation/providers/erp_providers.dart:33:21 • undefined_identifier
+  error • Undefined class 'AppLanguage' • lib/presentation/providers/erp_providers.dart:59:5 • undefined_class
+  error • Undefined class 'AppLanguage' • lib/presentation/providers/erp_providers.dart:128:20 • undefined_class
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was
+          deprecated after v3.33.0-1.0.pre • lib/presentation/screens/admin_management_sheet.dart:178:35 • deprecated_member_use
+  error • The named parameter 'statusBadgeText' isn't defined • lib/presentation/screens/history_screen.dart:120:33 • undefined_named_parameter
+  error • The named parameter 'statusBadgeText' isn't defined • lib/presentation/screens/history_screen.dart:138:33 • undefined_named_parameter
+  error • The named parameter 'statusBadgeText' isn't defined • lib/presentation/screens/history_screen.dart:156:33 • undefined_named_parameter
+warning • Unused import: '../../l10n/erp_localizations.dart' • lib/presentation/screens/login_screen.dart:4:8 • unused_import
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was
+          deprecated after v3.33.0-1.0.pre • lib/presentation/screens/materials_screen.dart:458:21 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was
+          deprecated after v3.33.0-1.0.pre • lib/presentation/screens/materials_screen.dart:489:23 • deprecated_member_use
+warning • Unused import: '../../l10n/erp_localizations.dart' • lib/presentation/screens/more_screen.dart:5:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • lib/presentation/screens/more_screen.dart:616:15 • prefer_const_constructors
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was
+          deprecated after v3.33.0-1.0.pre • lib/presentation/screens/sales_pos_screen.dart:269:17 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was
+          deprecated after v3.33.0-1.0.pre • lib/presentation/screens/stock_in_screen.dart:97:17 • deprecated_member_use
+  error • Invalid constant value • test/inventory_engine_test.dart:169:21 • invalid_constant
+  error • There's no constant named 'ceramics' in 'MaterialCategory' • test/inventory_engine_test.dart:169:38 • undefined_enum_constant
+  error • The getter 'materials' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction>
+         removedSales, List<StockInRecord> removedStockIns})' • test/inventory_engine_test.dart:193:22 • undefined_getter
+  error • The getter 'materials' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction>
+         removedSales, List<StockInRecord> removedStockIns})' • test/inventory_engine_test.dart:194:22 • undefined_getter
+  error • The getter 'sales' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction>
+         removedSales, List<StockInRecord> removedStockIns})' • test/inventory_engine_test.dart:195:22 • undefined_getter
+  error • The getter 'sales' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction>
+         removedSales, List<StockInRecord> removedStockIns})' • test/inventory_engine_test.dart:196:22 • undefined_getter
+  error • The getter 'stockIns' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction>
+         removedSales, List<StockInRecord> removedStockIns})' • test/inventory_engine_test.dart:197:22 • undefined_getter
+
+27 issues found. (ran in 6.2s)
+                                                                                                                                                        
+┌──(ayuda㉿kali)-[~/…/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android]
+└─$ flutter test   
+Resolving dependencies... 
+Downloading packages... 
+  clock 1.1.2 (1.1.3 available)
+  flutter_lints 4.0.0 (6.0.0 available)
+  flutter_riverpod 2.6.1 (3.4.3 available)
+  intl 0.20.2 (0.20.3 available)
+  lints 4.0.0 (6.1.0 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.17.0 (1.19.0 available)
+  platform 3.1.6 (3.2.0 available)
+  riverpod 2.6.1 (3.4.3 available)
+  sqflite 2.4.2+1 (2.4.5 available)
+  sqflite_android 2.4.2+3 (2.4.5 available)
+  sqflite_common 2.5.8 (2.5.14 available)
+  sqflite_darwin 2.4.2 (2.4.4+1 available)
+  sqflite_platform_interface 2.4.0 (2.4.3 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  synchronized 3.4.0+1 (3.5.0 available)
+  test_api 0.7.10 (0.7.15 available)
+  vector_math 2.2.0 (2.4.4 available)
+  web 1.1.1 (1.1.2 available)
+Got dependencies!
+20 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:01 +0: ... /home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart     lib/presentation/providers/erp_providers.dart:14:9: Error: Type 'AppLanguage' not found.
+  final AppLanguage language;
+        ^^^^^^^^^^^
+lib/presentation/providers/erp_providers.dart:59:5: Error: Type 'AppLanguage' not found.
+    AppLanguage? language,
+    ^^^^^^^^^^^
+lib/presentation/providers/erp_providers.dart:128:20: Error: Type 'AppLanguage' not found.
+  void setLanguage(AppLanguage lang) {
+                   ^^^^^^^^^^^
+00:02 +0: ... /home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart     lib/presentation/providers/erp_providers.dart:33:21: Error: Undefined name 'AppLanguage'.
+    this.language = AppLanguage.en,
+                    ^^^^^^^^^^^
+test/inventory_engine_test.dart:169:38: Error: Member not found: 'ceramics'.
+          category: MaterialCategory.ceramics,
+                                     ^^^^^^^^
+test/inventory_engine_test.dart:193:22: Error: The getter 'materials' isn't defined for the type '({ErpState cleanedState, List<MaterialItem>
+removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+ - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'List' is from 'dart:core'.
+ - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'materials'.
+      expect(cleaned.materials.length, 1);
+                     ^^^^^^^^^
+test/inventory_engine_test.dart:194:22: Error: The getter 'materials' isn't defined for the type '({ErpState cleanedState, List<MaterialItem>
+removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+ - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'List' is from 'dart:core'.
+ - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'materials'.
+      expect(cleaned.materials.first.id, registered.material.id);
+                     ^^^^^^^^^
+test/inventory_engine_test.dart:195:22: Error: The getter 'sales' isn't defined for the type '({ErpState cleanedState, List<MaterialItem>
+removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+ - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'List' is from 'dart:core'.
+ - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'sales'.
+      expect(cleaned.sales.length, 1);
+                     ^^^^^
+test/inventory_engine_test.dart:196:22: Error: The getter 'sales' isn't defined for the type '({ErpState cleanedState, List<MaterialItem>
+removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+ - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'List' is from 'dart:core'.
+ - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'sales'.
+      expect(cleaned.sales.first.customerNote, 'Genuine Invoice #101');
+                     ^^^^^
+test/inventory_engine_test.dart:197:22: Error: The getter 'stockIns' isn't defined for the type '({ErpState cleanedState, List<MaterialItem>
+removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+ - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'List' is from 'dart:core'.
+ - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'stockIns'.
+      expect(cleaned.stockIns, isEmpty);
+                     ^^^^^^^^
+00:03 +0: ... /home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart     lib/data/repositories/erp_repository.dart:42:21: Error: The getter 'materials' isn't defined for the type 'Object'.
+ - 'Object' is from 'dart:core'.
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'materials'.
+          (erpState.materials.length != loadedState.materials.length ||
+                    ^^^^^^^^^
+lib/data/repositories/erp_repository.dart:43:24: Error: The getter 'sales' isn't defined for the type 'Object'.
+ - 'Object' is from 'dart:core'.
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'sales'.
+              erpState.sales.length != loadedState.sales.length ||
+                       ^^^^^
+lib/data/repositories/erp_repository.dart:44:24: Error: The getter 'stockIns' isn't defined for the type 'Object'.
+ - 'Object' is from 'dart:core'.
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'stockIns'.
+              erpState.stockIns.length != loadedState.stockIns.length)) {
+                       ^^^^^^^^
+lib/data/repositories/erp_repository.dart:45:33: Error: The argument type 'Object' can't be assigned to the parameter type 'ErpState'.
+ - 'Object' is from 'dart:core'.
+ - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+        await _sqlite.saveState(erpState);
+                                ^
+lib/data/repositories/erp_repository.dart:49:14: Error: A value of type '({PublicUser? activeUser, Object erpState, List<UserAccount> users})' can't be
+returned from an async function with return type 'Future<({PublicUser? activeUser, ErpState erpState, List<UserAccount> users})>'.
+ - 'PublicUser' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'Object' is from 'dart:core'.
+ - 'List' is from 'dart:core'.
+ - 'UserAccount' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+ - 'Future' is from 'dart:async'.
+ - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+      return (
+             ^
+lib/presentation/providers/erp_providers.dart:14:9: Error: 'AppLanguage' isn't a type.
+  final AppLanguage language;
+        ^^^^^^^^^^^
+lib/presentation/providers/erp_providers.dart:59:5: Error: 'AppLanguage' isn't a type.
+    AppLanguage? language,
+    ^^^^^^^^^^^
+lib/presentation/providers/erp_providers.dart:128:20: Error: 'AppLanguage' isn't a type.
+  void setLanguage(AppLanguage lang) {
+                   ^^^^^^^^^^^
+00:06 +0: ... /home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart     lib/presentation/screens/history_screen.dart:120:33: Error: No named parameter with the name 'statusBadgeText'.
+                                statusBadgeText: sale.isReversed
+                                ^^^^^^^^^^^^^^^
+lib/presentation/widgets/erp_components.dart:678:9: Context: Found this candidate, but the arguments don't match.
+  const ErpTransactionListItem({
+        ^^^^^^^^^^^^^^^^^^^^^^
+lib/presentation/screens/history_screen.dart:138:33: Error: No named parameter with the name 'statusBadgeText'.
+                                statusBadgeText: stin.isReversed
+                                ^^^^^^^^^^^^^^^
+lib/presentation/widgets/erp_components.dart:678:9: Context: Found this candidate, but the arguments don't match.
+  const ErpTransactionListItem({
+        ^^^^^^^^^^^^^^^^^^^^^^
+lib/presentation/screens/history_screen.dart:156:33: Error: No named parameter with the name 'statusBadgeText'.
+                                statusBadgeText: aud.isReversed
+                                ^^^^^^^^^^^^^^^
+lib/presentation/widgets/erp_components.dart:678:9: Context: Found this candidate, but the arguments don't match.
+  const ErpTransactionListItem({
+        ^^^^^^^^^^^^^^^^^^^^^^
+00:10 +0 -1: loading /home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart [E]
+  Failed to load "/home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart":
+  Compilation failed for testPath=/home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart: lib/presentation/providers/erp_providers.dart:14:9: Error: Type 'AppLanguage' not found.
+    final AppLanguage language;
+          ^^^^^^^^^^^
+  lib/presentation/providers/erp_providers.dart:59:5: Error: Type 'AppLanguage' not found.
+      AppLanguage? language,
+      ^^^^^^^^^^^
+  lib/presentation/providers/erp_providers.dart:128:20: Error: Type 'AppLanguage' not found.
+    void setLanguage(AppLanguage lang) {
+                     ^^^^^^^^^^^
+  lib/presentation/providers/erp_providers.dart:33:21: Error: Undefined name 'AppLanguage'.
+      this.language = AppLanguage.en,
+                      ^^^^^^^^^^^
+  test/inventory_engine_test.dart:169:38: Error: Member not found: 'ceramics'.
+            category: MaterialCategory.ceramics,
+                                       ^^^^^^^^
+  test/inventory_engine_test.dart:193:22: Error: The getter 'materials' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+   - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'List' is from 'dart:core'.
+   - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'materials'.
+        expect(cleaned.materials.length, 1);
+                       ^^^^^^^^^
+  test/inventory_engine_test.dart:194:22: Error: The getter 'materials' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+   - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'List' is from 'dart:core'.
+   - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'materials'.
+        expect(cleaned.materials.first.id, registered.material.id);
+                       ^^^^^^^^^
+  test/inventory_engine_test.dart:195:22: Error: The getter 'sales' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+   - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'List' is from 'dart:core'.
+   - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'sales'.
+        expect(cleaned.sales.length, 1);
+                       ^^^^^
+  test/inventory_engine_test.dart:196:22: Error: The getter 'sales' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+   - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'List' is from 'dart:core'.
+   - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'sales'.
+        expect(cleaned.sales.first.customerNote, 'Genuine Invoice #101');
+                       ^^^^^
+  test/inventory_engine_test.dart:197:22: Error: The getter 'stockIns' isn't defined for the type '({ErpState cleanedState, List<MaterialItem> removedMaterials, List<SaleTransaction> removedSales, List<StockInRecord> removedStockIns})'.
+   - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'List' is from 'dart:core'.
+   - 'MaterialItem' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'SaleTransaction' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'StockInRecord' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'stockIns'.
+        expect(cleaned.stockIns, isEmpty);
+                       ^^^^^^^^
+  lib/data/repositories/erp_repository.dart:42:21: Error: The getter 'materials' isn't defined for the type 'Object'.
+   - 'Object' is from 'dart:core'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'materials'.
+            (erpState.materials.length != loadedState.materials.length ||
+                      ^^^^^^^^^
+  lib/data/repositories/erp_repository.dart:43:24: Error: The getter 'sales' isn't defined for the type 'Object'.
+   - 'Object' is from 'dart:core'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'sales'.
+                erpState.sales.length != loadedState.sales.length ||
+                         ^^^^^
+  lib/data/repositories/erp_repository.dart:44:24: Error: The getter 'stockIns' isn't defined for the type 'Object'.
+   - 'Object' is from 'dart:core'.
+  Try correcting the name to the name of an existing getter, or defining a getter or field named 'stockIns'.
+                erpState.stockIns.length != loadedState.stockIns.length)) {
+                         ^^^^^^^^
+  lib/data/repositories/erp_repository.dart:45:33: Error: The argument type 'Object' can't be assigned to the parameter type 'ErpState'.
+   - 'Object' is from 'dart:core'.
+   - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+          await _sqlite.saveState(erpState);
+                                  ^
+  lib/data/repositories/erp_repository.dart:49:14: Error: A value of type '({PublicUser? activeUser, Object erpState, List<UserAccount> users})' can't be returned from an async function with return type 'Future<({PublicUser? activeUser, ErpState erpState, List<UserAccount> users})>'.
+   - 'PublicUser' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'Object' is from 'dart:core'.
+   - 'List' is from 'dart:core'.
+   - 'UserAccount' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+   - 'Future' is from 'dart:async'.
+   - 'ErpState' is from 'package:construction_material_erp/domain/models/erp_models.dart' ('lib/domain/models/erp_models.dart').
+        return (
+               ^
+  lib/presentation/providers/erp_providers.dart:14:9: Error: 'AppLanguage' isn't a type.
+    final AppLanguage language;
+          ^^^^^^^^^^^
+  lib/presentation/providers/erp_providers.dart:59:5: Error: 'AppLanguage' isn't a type.
+      AppLanguage? language,
+      ^^^^^^^^^^^
+  lib/presentation/providers/erp_providers.dart:128:20: Error: 'AppLanguage' isn't a type.
+    void setLanguage(AppLanguage lang) {
+                     ^^^^^^^^^^^
+  lib/presentation/screens/history_screen.dart:120:33: Error: No named parameter with the name 'statusBadgeText'.
+                                  statusBadgeText: sale.isReversed
+                                  ^^^^^^^^^^^^^^^
+  lib/presentation/widgets/erp_components.dart:678:9: Context: Found this candidate, but the arguments don't match.
+    const ErpTransactionListItem({
+          ^^^^^^^^^^^^^^^^^^^^^^
+  lib/presentation/screens/history_screen.dart:138:33: Error: No named parameter with the name 'statusBadgeText'.
+                                  statusBadgeText: stin.isReversed
+                                  ^^^^^^^^^^^^^^^
+  lib/presentation/widgets/erp_components.dart:678:9: Context: Found this candidate, but the arguments don't match.
+    const ErpTransactionListItem({
+          ^^^^^^^^^^^^^^^^^^^^^^
+  lib/presentation/screens/history_screen.dart:156:33: Error: No named parameter with the name 'statusBadgeText'.
+                                  statusBadgeText: aud.isReversed
+                                  ^^^^^^^^^^^^^^^
+  lib/presentation/widgets/erp_components.dart:678:9: Context: Found this candidate, but the arguments don't match.
+    const ErpTransactionListItem({
+          ^^^^^^^^^^^^^^^^^^^^^^
+  .
+
+To run this test again: /home/ayuda/development/flutter/bin/cache/dart-sdk/bin/dart test /home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart -p vm --plain-name 'loading /home/ayuda/Documents/Projects/Construction Finishing ERP/Construction-Finishing-ERP/flutter_android/test/inventory_engine_test.dart'
+00:10 +0 -1: Some tests failed.  

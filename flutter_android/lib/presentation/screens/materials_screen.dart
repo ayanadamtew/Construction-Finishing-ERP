@@ -455,7 +455,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: selectedCategoryCode,
+                    initialValue: selectedCategoryCode,
                     isExpanded: true,
                     decoration: InputDecoration(
                       labelText: i18n.t('fieldCategory'),
@@ -486,7 +486,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                   const SizedBox(height: 10),
                   if (existing == null || !isUsed) ...[
                     DropdownButtonFormField<MaterialUnit>(
-                      value: selectedUnit,
+                      initialValue: selectedUnit,
                       isExpanded: true,
                       decoration: InputDecoration(
                         labelText: i18n.t('fieldUnit'),

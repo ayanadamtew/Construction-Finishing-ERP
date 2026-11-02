@@ -117,7 +117,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 secondaryAmountText:
                                     '+${formatETB(sale.totalProfit)} ${i18n.t('profitLabel')}',
                                 isReversed: sale.isReversed,
-                                statusBadgeText: sale.isReversed
+                                reversedBadgeText: sale.isReversed
                                     ? i18n.t('badgeReversed')
                                     : null,
                               ),
@@ -135,7 +135,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 secondaryAmountText:
                                     formatETB(stin.totalPurchaseCost),
                                 isReversed: stin.isReversed,
-                                statusBadgeText: stin.isReversed
+                                reversedBadgeText: stin.isReversed
                                     ? i18n.t('badgeReversed')
                                     : null,
                               ),
@@ -153,7 +153,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 amountText:
                                     '${aud.adjustments.length} ${i18n.t('itemsCount')}',
                                 isReversed: aud.isReversed,
-                                statusBadgeText: aud.isReversed
+                                reversedBadgeText: aud.isReversed
                                     ? i18n.t('badgeReversed')
                                     : null,
                               ),

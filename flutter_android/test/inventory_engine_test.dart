@@ -166,7 +166,7 @@ void main() {
         seedWithSample,
         const RegisterMaterialInput(
           name: 'Genuine Customer Marble Slab',
-          category: MaterialCategory.ceramics,
+          category: MaterialCategory.tiles,
           specs: '120x60cm',
           unit: MaterialUnit.pcs,
           currentStock: 25,
@@ -189,7 +189,10 @@ void main() {
         ),
       );
 
-      final cleaned = InventoryEngine.cleanupSampleData(withGenuineSale.state);
+      final cleanupResult =
+          InventoryEngine.cleanupSampleData(withGenuineSale.state);
+      final cleaned = cleanupResult.cleanedState;
+      expect(cleanupResult.removedMaterials, isNotEmpty);
       expect(cleaned.materials.length, 1);
       expect(cleaned.materials.first.id, registered.material.id);
       expect(cleaned.sales.length, 1);
