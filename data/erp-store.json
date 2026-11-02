@@ -1,148 +1,92 @@
 {
-  "materials": [
-    {
-      "id": "mat_rebar_12",
-      "name": "Deformed Rebar 12mm",
-      "category": "rebar",
-      "specs": "Ø12mm · Grade 60 · 12m length",
-      "unit": "bars",
-      "currentStock": 240,
-      "minStockLevel": 40,
-      "unitCost": 860,
-      "defaultSellingPrice": 990,
-      "isArchived": false,
-      "createdAt": "2026-10-30T08:00:00.000Z",
-      "updatedAt": "2026-10-30T08:00:00.000Z"
-    },
-    {
-      "id": "mat_rebar_16",
-      "name": "Deformed Rebar 16mm",
-      "category": "rebar",
-      "specs": "Ø16mm · Grade 60 · 12m length",
-      "unit": "bars",
-      "currentStock": 115,
-      "minStockLevel": 30,
-      "unitCost": 1520,
-      "defaultSellingPrice": 1750,
-      "isArchived": false,
-      "createdAt": "2026-10-30T08:00:00.000Z",
-      "updatedAt": "2026-10-30T08:00:00.000Z"
-    },
-    {
-      "id": "mat_cement_opc",
-      "name": "Dangote Portland Cement 50kg",
-      "category": "cement",
-      "specs": "OPC 42.5R · 50kg bag",
-      "unit": "bags",
-      "currentStock": 180,
-      "minStockLevel": 50,
-      "unitCost": 1120,
-      "defaultSellingPrice": 1280,
-      "isArchived": false,
-      "createdAt": "2026-10-30T08:00:00.000Z",
-      "updatedAt": "2026-10-30T08:00:00.000Z"
-    },
-    {
-      "id": "mat_tile_60x60",
-      "name": "Porcelain Floor Tile 60x60 Ivory",
-      "category": "tiles",
-      "specs": "60x60cm · Glazed Polished · 1.44m²/box",
-      "unit": "boxes",
-      "currentStock": 18,
-      "minStockLevel": 25,
-      "unitCost": 1350,
-      "defaultSellingPrice": 1620,
-      "isArchived": false,
-      "createdAt": "2026-10-30T08:00:00.000Z",
-      "updatedAt": "2026-10-30T08:00:00.000Z"
-    },
-    {
-      "id": "mat_paint_20l",
-      "name": "Super Acrylic Exterior Wall Paint 20L",
-      "category": "paint",
-      "specs": "20L Bucket · Pure White Weatherproof",
-      "unit": "buckets",
-      "currentStock": 32,
-      "minStockLevel": 10,
-      "unitCost": 3400,
-      "defaultSellingPrice": 3950,
-      "isArchived": false,
-      "createdAt": "2026-10-30T08:00:00.000Z",
-      "updatedAt": "2026-10-30T08:00:00.000Z"
-    },
-    {
-      "id": "mat_wire_bind",
-      "name": "Annealed Black Binding Wire",
-      "category": "hardware",
-      "specs": "1.6mm Gauge · Rebar Tie Wire",
-      "unit": "kg",
-      "currentStock": 12,
-      "minStockLevel": 20,
-      "unitCost": 210,
-      "defaultSellingPrice": 265,
-      "isArchived": false,
-      "createdAt": "2026-10-30T08:00:00.000Z",
-      "updatedAt": "2026-10-30T08:00:00.000Z"
-    }
-  ],
+  "materials": [],
+  "sales": [],
+  "stockIns": [],
+  "audits": [],
   "categories": [
     {
       "id": "rebar",
-      "name": "Rebar",
-      "isSystemDefault": true,
+      "name": {
+        "en": "Rebar & Steel",
+        "am": "የአርማታ ብረት",
+        "om": "Sibiila Ijaarsaa"
+      },
+      "isSystem": true,
       "createdAt": "2026-10-30T08:00:00.000Z"
     },
     {
       "id": "cement",
-      "name": "Cement",
-      "isSystemDefault": true,
+      "name": {
+        "en": "Cement & Binders",
+        "am": "ሲሚንቶ",
+        "om": "Simintoo"
+      },
+      "isSystem": true,
       "createdAt": "2026-10-30T08:00:00.000Z"
     },
     {
       "id": "tiles",
-      "name": "Tiles",
-      "isSystemDefault": true,
+      "name": {
+        "en": "Ceramics & Tiles",
+        "am": "ሴራሚክ እና ታይልስ",
+        "om": "Seeraamikii & Taayilsii"
+      },
+      "isSystem": true,
       "createdAt": "2026-10-30T08:00:00.000Z"
     },
     {
       "id": "paint",
-      "name": "Paint",
-      "isSystemDefault": true,
+      "name": {
+        "en": "Paints & Finishes",
+        "am": "ቀለም እና ማጠናቀቂያ",
+        "om": "Halluu & Miidhagina"
+      },
+      "isSystem": true,
       "createdAt": "2026-10-30T08:00:00.000Z"
     },
     {
       "id": "hardware",
-      "name": "Hardware",
-      "isSystemDefault": true,
+      "name": {
+        "en": "Hardware & Wire",
+        "am": "ሃርድዌር እና ሽቦ",
+        "om": "Meoshaalee & Shiboo"
+      },
+      "isSystem": true,
       "createdAt": "2026-10-30T08:00:00.000Z"
     },
     {
       "id": "other",
-      "name": "Other",
-      "isSystemDefault": true,
+      "name": {
+        "en": "Other Materials",
+        "am": "ሌሎች ዕቃዎች",
+        "om": "Meeshaalee Biroo"
+      },
+      "isSystem": true,
       "createdAt": "2026-10-30T08:00:00.000Z"
     }
   ],
-  "sales": [],
-  "stockIns": [],
-  "audits": [],
   "summary": {
+    "totalInventoryValue": 0,
+    "totalPotentialRevenue": 0,
     "totalRevenue": 0,
-    "totalProfit": 0,
-    "inventoryCostValue": 718420,
-    "inventoryRetailValue": 827990,
-    "lowStockCount": 2
+    "totalCostOfGoodsSold": 0,
+    "totalGrossProfit": 0,
+    "lowStockCount": 0,
+    "totalMaterialsCount": 0
   },
   "users": [
     {
       "id": "usr_admin_initial",
       "username": "admin",
-      "displayName": "Store Administrator",
+      "email": "admin@efa.local",
+      "displayName": "System Administrator",
       "role": "admin",
-      "passwordHash": "scrypt$31d7a43291e8d07b5d3c1a6172dbca02$9e433ca72f25188e0a56c7386839b6f785a46d6b6b3b05f7360683c199a7918556a25f6c07a23abf72f1dec56630af3a9073a3aade8cc224375b585652a5d57c",
+      "passwordHash": "4dfaa9aa7f329cf6ee80f7f290e6e7d06929b8fa5c1c36f3384a54df140b44fe88b0314b801c60996c2a0c044a7dd9451fd759eb486ce4d0bb32d48f62503e52",
+      "passwordSalt": "dcff0e77e719816908d37c73915d8bf2",
       "isActive": true,
-      "createdAt": "2026-11-02T06:15:57.509Z",
-      "updatedAt": "2026-11-02T06:15:57.509Z"
+      "createdAt": "2026-04-12T10:02:13.213Z",
+      "updatedAt": "2026-04-12T10:02:13.213Z",
+      "lastLoginAt": "2026-04-12T10:07:36.224Z"
     }
   ]
 }

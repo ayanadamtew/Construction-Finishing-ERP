@@ -118,6 +118,126 @@ class InventoryEngine {
     );
   }
 
+  /// Known sample/demo record IDs used only in test suites or legacy demo builds.
+  static const Set<String> knownSampleMaterialIds = <String>{
+    'mat-rebar-12mm',
+    'mat-rebar-16mm',
+    'mat-cement-dangote',
+    'mat-cement-derba',
+    'mat-tiles-porcelain-60',
+    'mat-paint-kadisco-white',
+    'mat-hardware-binding-wire',
+    'mat_rebar_12',
+    'mat_rebar_16',
+    'mat_cement_opc',
+    'mat_tile_60x60',
+    'mat_paint_20l',
+    'mat_wire_bind',
+  };
+
+  static const Set<String> knownSampleSaleIds = <String>{
+    'sale-seed-001',
+  };
+
+  static const Set<String> knownSampleStockInIds = <String>{
+    'stin-seed-001',
+  };
+
+  /// Creates a clean, production-ready ERP state with zero sample/demo materials
+  /// or transactions, preserving only the built-in system categories.
+  static ErpState createProductionState({String? nowIso}) {
+    final timestamp = nowIso ?? DateTime.now().toUtc().toIso8601String();
+    final categories = createDefaultCategories(nowIso: timestamp);
+    const materials = <MaterialItem>[];
+    const sales = <SaleTransaction>[];
+    const stockIns = <StockInRecord>[];
+    const audits = <StockAuditRecord>[];
+
+    return ErpState(
+      materials: materials,
+      sales: sales,
+      stockIns: stockIns,
+      audits: audits,
+      categories: categories,
+      summary: calculateSummary(
+        materials: materials,
+        sales: sales,
+        referenceDateIso: timestamp,
+      ),
+    );
+  }
+
+  /// Safely identifies and removes known sample/demo records while strictly
+  /// preserving all genuine user-created materials and business transactions.
+  static ({
+    ErpState cleanedState,
+    List<MaterialItem> removedMaterials,
+    List<SaleTransaction> removedSales,
+    List<StockInRecord> removedStockIns,
+  }) cleanupSampleData(ErpState state, {String? nowIso}) {
+    final timestamp = nowIso ?? DateTime.now().toUtc().toIso8601String();
+
+    final removedSales = state.sales
+        .where((s) => knownSampleSaleIds.contains(s.id))
+        .toList();
+    final keptSales = state.sales
+        .where((s) => !knownSampleSaleIds.contains(s.id))
+        .toList();
+
+    final removedStockIns = state.stockIns
+        .where((st) => knownSampleStockInIds.contains(st.id))
+        .toList();
+    final keptStockIns = state.stockIns
+        .where((st) => !knownSampleStockInIds.contains(st.id))
+        .toList();
+
+    // A sample material is only removed if no genuine (kept) sale, stock-in, or audit references it.
+    final genuineReferencedMaterialIds = <String>{
+      for (final s in keptSales)
+        for (final line in s.items) line.materialId,
+      for (final st in keptStockIns) st.materialId,
+      for (final a in state.audits)
+        for (final adj in a.adjustments) adj.materialId,
+    };
+
+    final removedMaterials = <MaterialItem>[];
+    final keptMaterials = <MaterialItem>[];
+
+    for (final m in state.materials) {
+      if (knownSampleMaterialIds.contains(m.id) &&
+          !genuineReferencedMaterialIds.contains(m.id)) {
+        removedMaterials.add(m);
+      } else {
+        keptMaterials.add(m);
+      }
+    }
+
+    final categories = state.categories.isNotEmpty
+        ? state.categories
+        : createDefaultCategories(nowIso: timestamp);
+
+    final cleanedState = ErpState(
+      materials: keptMaterials,
+      sales: keptSales,
+      stockIns: keptStockIns,
+      audits: state.audits,
+      categories: categories,
+      summary: calculateSummary(
+        materials: keptMaterials,
+        sales: keptSales,
+        referenceDateIso: timestamp,
+      ),
+    );
+
+    return (
+      cleanedState: cleanedState,
+      removedMaterials: removedMaterials,
+      removedSales: removedSales,
+      removedStockIns: removedStockIns,
+    );
+  }
+
+  /// Creates deterministic seed state strictly for automated unit and widget tests.
   static ErpState createSeedState({String? nowIso}) {
     final timestamp = nowIso ?? DateTime.now().toUtc().toIso8601String();
     final categories = createDefaultCategories(nowIso: timestamp);
@@ -413,6 +533,19 @@ class InventoryEngine {
     }
 
     final existing = state.materials[index];
+    final hasTransactions = isMaterialUsed(state, materialId);
+
+    if (input.unit != null &&
+        input.unit != existing.unit &&
+        hasTransactions) {
+      throw const AppDomainError(
+        code: 'IMMUTABLE_FIELD_VIOLATION',
+        message:
+            'Tracking unit is locked because transactions already exist for this material (BR-001).',
+        status: 400,
+      );
+    }
+
     final nextName = input.name != null ? input.name!.trim() : existing.name;
     if (nextName.isEmpty || nextName.length > 120) {
       throw const AppDomainError(
@@ -463,6 +596,7 @@ class InventoryEngine {
       category: input.category ?? MaterialCategory.fromCode(nextCategoryCode),
       categoryCode: nextCategoryCode,
       specs: nextSpecs,
+      unit: input.unit ?? existing.unit,
       minStockLevel: round2(nextMinStock),
       defaultSellingPrice: round2(nextSellingPrice),
       updatedAt: timestamp,

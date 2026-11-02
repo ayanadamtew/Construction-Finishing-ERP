@@ -459,7 +459,7 @@ class _SettingsSubView extends ConsumerWidget {
         const SizedBox(height: 12),
 
         // 4. Signed-In Account & Logout Card
-        if (currentUser != null)
+        if (currentUser != null) ...[
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -525,6 +525,148 @@ class _SettingsSubView extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+        ],
+
+        // 5. About EFA Card (Developer Information & Project Metadata)
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: ErpColors.surfaceCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ErpColors.borderSubtle),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: ErpColors.primaryLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: ErpColors.primaryDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          i18n.t('aboutEfaTitle'),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: ErpColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '${ErpAppInfo.appName} v${ErpAppInfo.appVersion} (${i18n.t('buildNumberLabel')} ${ErpAppInfo.buildNumber})',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: ErpColors.primaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20, color: ErpColors.borderSubtle),
+              _AboutInfoRow(
+                label: i18n.t('developerNameLabel'),
+                value: ErpAppInfo.developerName,
+                icon: Icons.person_outline_rounded,
+              ),
+              const SizedBox(height: 8),
+              _AboutInfoRow(
+                label: i18n.t('developerPhoneLabel'),
+                value: ErpAppInfo.developerPhone,
+                icon: Icons.phone_outlined,
+              ),
+              const SizedBox(height: 8),
+              _AboutInfoRow(
+                label: i18n.t('appVersionLabel'),
+                value: ErpAppInfo.appVersion,
+                icon: Icons.verified_outlined,
+              ),
+              const SizedBox(height: 8),
+              _AboutInfoRow(
+                label: i18n.t('buildNumberLabel'),
+                value: ErpAppInfo.buildNumber,
+                icon: Icons.tag_rounded,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                i18n.t('appDescriptionLabel'),
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: ErpColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                ErpAppInfo.appDescription,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: ErpColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AboutInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _AboutInfoRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: ErpColors.textSecondary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: ErpColors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: ErpColors.textPrimary,
+            ),
+          ),
+        ),
       ],
     );
   }

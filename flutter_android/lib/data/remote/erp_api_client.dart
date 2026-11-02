@@ -200,6 +200,7 @@ class ErpApiClient {
       else if (input.category != null)
         'category': input.category!.code,
       if (input.specs != null) 'specs': input.specs,
+      if (input.unit != null) 'unit': input.unit!.code,
       if (input.minStockLevel != null) 'minStockLevel': input.minStockLevel,
       if (input.defaultSellingPrice != null)
         'defaultSellingPrice': input.defaultSellingPrice,
@@ -465,5 +466,65 @@ class ErpApiClient {
         )
         .timeout(timeoutDuration);
     _decodeAndCheck(response, fallbackMessage: 'Failed to delete category');
+  }
+
+  /// `GET /api/users`
+  Future<List<PublicUser>> fetchUsers() async {
+    final response = await _client
+        .get(Uri.parse('$baseUrl/users'), headers: _jsonHeaders)
+        .timeout(timeoutDuration);
+    final data = _decodeAndCheck(
+      response,
+      fallbackMessage: 'Failed to fetch user accounts',
+    );
+    final list = data['users'] as List<dynamic>? ?? const [];
+    return list
+        .map((e) => PublicUser.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// `POST /api/users`
+  Future<PublicUser> createUser(CreateUserInput input) async {
+    final response = await _client
+        .post(
+          Uri.parse('$baseUrl/users'),
+          headers: _jsonHeaders,
+          body: jsonEncode({
+            'username': input.username,
+            'email': input.email,
+            'fullName': input.fullName,
+            'role': input.role.code,
+            'password': input.password,
+          }),
+        )
+        .timeout(timeoutDuration);
+    final data = _decodeAndCheck(
+      response,
+      fallbackMessage: 'Failed to create user account',
+    );
+    return PublicUser.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
+  /// `PATCH /api/users/:id/status`
+  Future<void> toggleUserStatus(String userId, bool isActive) async {
+    final response = await _client
+        .patch(
+          Uri.parse('$baseUrl/users/$userId/status'),
+          headers: _jsonHeaders,
+          body: jsonEncode({'isActive': isActive}),
+        )
+        .timeout(timeoutDuration);
+    _decodeAndCheck(response, fallbackMessage: 'Failed to update user status');
+  }
+
+  /// `DELETE /api/users/:id`
+  Future<void> deleteUser(String userId) async {
+    final response = await _client
+        .delete(
+          Uri.parse('$baseUrl/users/$userId'),
+          headers: _jsonHeaders,
+        )
+        .timeout(timeoutDuration);
+    _decodeAndCheck(response, fallbackMessage: 'Failed to delete user account');
   }
 }

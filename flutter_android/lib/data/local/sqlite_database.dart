@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../core/constants/erp_constants.dart';
@@ -6,10 +7,10 @@ import '../../domain/services/auth_engine.dart';
 import '../../domain/services/inventory_engine.dart';
 
 /// Native Android SQLite persistence helper (`Sqflite`) implementing the exact
-/// schema and indexes defined in `docs/DATABASE_DESIGN.md` Section 4 (v2 with Auth, Categories, Archive & Reversals).
+/// schema and indexes defined in `docs/DATABASE_DESIGN.md` Section 4 (v3 with Production Cleanup, Auth, Categories, Archive & Reversals).
 class SqliteDatabaseHelper {
   static const String _dbName = 'senay_construction_erp.db';
-  static const int _dbVersion = 2;
+  static const int _dbVersion = 3;
 
   Database? _database;
 
@@ -31,13 +32,17 @@ class SqliteDatabaseHelper {
       },
       onCreate: (db, version) async {
         await _createSchema(db);
-        final seed = InventoryEngine.createSeedState();
-        await _persistFullStateInTransaction(db, seed);
+        // Production database starts clean with 0 sample materials or transactions.
+        final initial = InventoryEngine.createProductionState();
+        await _persistFullStateInTransaction(db, initial);
         await _ensureDefaultAdminSeeded(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await _migrateV1ToV2(db);
+        }
+        if (oldVersion < 3) {
+          await _migrateV2ToV3(db);
         }
       },
     );
@@ -218,6 +223,15 @@ class SqliteDatabaseHelper {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_audit_lines_material_id ON audit_line_items(material_id);',
     );
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sample_data_backups (
+        id TEXT PRIMARY KEY NOT NULL,
+        entity_type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        backed_up_at TEXT NOT NULL
+      );
+    ''');
   }
 
   Future<void> _migrateV1ToV2(Database db) async {
@@ -297,6 +311,120 @@ class SqliteDatabaseHelper {
         );
       }
     }
+  }
+
+  Future<void> _migrateV2ToV3(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sample_data_backups (
+        id TEXT PRIMARY KEY NOT NULL,
+        entity_type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        backed_up_at TEXT NOT NULL
+      );
+    ''');
+
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    final salesRows = await db.query('sale_transactions');
+    final saleLinesRows = await db.query('sale_line_items');
+    final stockInRows = await db.query('stock_in_records');
+    final auditLineRows = await db.query('audit_line_items');
+    final materialRows = await db.query('materials');
+
+    // Identify materials referenced by ANY genuine (non-sample) transaction
+    final genuineMaterialIds = <String>{};
+    for (final s in salesRows) {
+      final saleId = s['id'] as String;
+      if (!InventoryEngine.knownSampleSaleIds.contains(saleId)) {
+        for (final line in saleLinesRows.where((l) => l['sale_id'] == saleId)) {
+          genuineMaterialIds.add(line['material_id'] as String);
+        }
+      }
+    }
+    for (final stin in stockInRows) {
+      final stinId = stin['id'] as String;
+      if (!InventoryEngine.knownSampleStockInIds.contains(stinId)) {
+        genuineMaterialIds.add(stin['material_id'] as String);
+      }
+    }
+    for (final al in auditLineRows) {
+      genuineMaterialIds.add(al['material_id'] as String);
+    }
+
+    await db.transaction((txn) async {
+      // 1. Back up and remove sample sale transactions
+      for (final sale in salesRows) {
+        final saleId = sale['id'] as String;
+        if (InventoryEngine.knownSampleSaleIds.contains(saleId)) {
+          final lines =
+              saleLinesRows.where((l) => l['sale_id'] == saleId).toList();
+          await txn.insert(
+            'sample_data_backups',
+            {
+              'id': 'sale_$saleId',
+              'entity_type': 'sale_transaction',
+              'payload_json': jsonEncode({'sale': sale, 'items': lines}),
+              'backed_up_at': nowIso,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          await txn.delete(
+            'sale_line_items',
+            where: 'sale_id = ?',
+            whereArgs: [saleId],
+          );
+          await txn.delete(
+            'sale_transactions',
+            where: 'id = ?',
+            whereArgs: [saleId],
+          );
+        }
+      }
+
+      // 2. Back up and remove sample stock-in records
+      for (final stin in stockInRows) {
+        final stinId = stin['id'] as String;
+        if (InventoryEngine.knownSampleStockInIds.contains(stinId)) {
+          await txn.insert(
+            'sample_data_backups',
+            {
+              'id': 'stockin_$stinId',
+              'entity_type': 'stock_in_record',
+              'payload_json': jsonEncode(stin),
+              'backed_up_at': nowIso,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          await txn.delete(
+            'stock_in_records',
+            where: 'id = ?',
+            whereArgs: [stinId],
+          );
+        }
+      }
+
+      // 3. Back up and remove sample materials ONLY if not referenced by genuine transactions
+      for (final mat in materialRows) {
+        final matId = mat['id'] as String;
+        if (InventoryEngine.knownSampleMaterialIds.contains(matId) &&
+            !genuineMaterialIds.contains(matId)) {
+          await txn.insert(
+            'sample_data_backups',
+            {
+              'id': 'material_$matId',
+              'entity_type': 'material',
+              'payload_json': jsonEncode(mat),
+              'backed_up_at': nowIso,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          await txn.delete(
+            'materials',
+            where: 'id = ?',
+            whereArgs: [matId],
+          );
+        }
+      }
+    });
   }
 
   Future<void> _ensureDefaultAdminSeeded(Database db) async {

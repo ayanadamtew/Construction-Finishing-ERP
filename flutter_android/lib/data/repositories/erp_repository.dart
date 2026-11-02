@@ -13,11 +13,13 @@ class ErpRepository {
   final SqliteDatabaseHelper _sqlite;
   final ErpApiClient _apiClient;
   bool syncWithCompanionServer;
+  final bool seedDemoData;
 
   ErpRepository({
     SqliteDatabaseHelper? sqlite,
     ErpApiClient? apiClient,
     this.syncWithCompanionServer = false,
+    this.seedDemoData = false,
   })  : _sqlite = sqlite ?? SqliteDatabaseHelper(),
         _apiClient = apiClient ?? ErpApiClient();
 
@@ -32,7 +34,16 @@ class ErpRepository {
         PublicUser? activeUser
       })> initialize() async {
     try {
-      final erpState = await _sqlite.loadState();
+      final loadedState = await _sqlite.loadState();
+      final erpState = seedDemoData
+          ? loadedState
+          : InventoryEngine.cleanupSampleData(loadedState);
+      if (!seedDemoData &&
+          (erpState.materials.length != loadedState.materials.length ||
+              erpState.sales.length != loadedState.sales.length ||
+              erpState.stockIns.length != loadedState.stockIns.length)) {
+        await _sqlite.saveState(erpState);
+      }
       final users = await _sqlite.loadUsers();
       final sessionUser = await _sqlite.loadActiveSessionUser(users);
       return (
@@ -44,7 +55,9 @@ class ErpRepository {
     } catch (_) {
       final defaultAdmin = AuthEngine.createDefaultAdminUser();
       return (
-        erpState: InventoryEngine.createSeedState(),
+        erpState: seedDemoData
+            ? InventoryEngine.createSeedState()
+            : InventoryEngine.createProductionState(),
         users: <UserAccount>[defaultAdmin],
         activeUser: null,
       );

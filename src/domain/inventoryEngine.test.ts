@@ -38,8 +38,19 @@ test('round2 deterministically rounds currency and quantity math to 2 decimal pl
   assert.equal(round2(0), 0);
 });
 
-test('createInitialErpState initializes SKU-free materials and accurate store summary KPIs', () => {
-  const state = createInitialErpState();
+test('createInitialErpState defaults to a clean production state with zero sample records', () => {
+  const prodState = createInitialErpState();
+  assert.equal(prodState.materials.length, 0);
+  assert.equal(prodState.sales.length, 0);
+  assert.equal(prodState.stockIns.length, 0);
+  assert.equal(prodState.audits.length, 0);
+  assert.equal(prodState.categories.length, 6);
+  assert.equal(prodState.summary.totalRevenue, 0);
+  assert.equal(prodState.summary.inventoryCostValue, 0);
+});
+
+test('createInitialErpState({ seedDemoData: true }) initializes SKU-free materials and accurate store summary KPIs for test suites', () => {
+  const state = createInitialErpState({ seedDemoData: true });
   assert.equal(state.materials.length, 6);
   assert.equal(state.sales.length, 0);
   assert.equal(state.summary.totalRevenue, 0);
@@ -62,7 +73,7 @@ test('validateCategoryAndUnit accepts valid enums and throws AppDomainError on i
 });
 
 test('calculateStoreSummary aggregates sales revenue and profit accurately', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const summary = calculateStoreSummary(state.materials, [
     {
       id: 'sale_test_1',
@@ -79,7 +90,7 @@ test('calculateStoreSummary aggregates sales revenue and profit accurately', () 
 });
 
 test('AC-001: registerMaterial creates a SKU-free material and updates store summary', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const initialCostTotal = state.summary.inventoryCostValue;
 
   const created = registerMaterial(state, {
@@ -108,7 +119,7 @@ test('AC-001: registerMaterial creates a SKU-free material and updates store sum
 });
 
 test('VAL-001 & VAL-003: registerMaterial rejects empty name and negative numbers', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
 
   assert.throws(
     () =>
@@ -146,7 +157,7 @@ test('VAL-001 & VAL-003: registerMaterial rejects empty name and negative number
 });
 
 test('FR-003 & FR-004: updateMaterialMetadata updates mutable fields and blocks currentStock tampering', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const targetId = state.materials[0].id;
 
   const updated = updateMaterialMetadata(state, targetId, {
@@ -175,7 +186,7 @@ test('FR-003 & FR-004: updateMaterialMetadata updates mutable fields and blocks 
 });
 
 test('BR-001: updateMaterialMetadata blocks changing unit once material has recorded transactions', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const target = state.materials[0];
 
   state.stockIns.push({
@@ -205,7 +216,7 @@ test('BR-001: updateMaterialMetadata blocks changing unit once material has reco
 });
 
 test('AC-002: recordMultiItemSale calculates line totals, total revenue, profit, and deducts stock atomically', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const cement = state.materials.find((m) => m.id === 'mat_cement_opc')!;
   const rebar12 = state.materials.find((m) => m.id === 'mat_rebar_12')!;
   cement.currentStock = 100;
@@ -244,7 +255,7 @@ test('AC-002: recordMultiItemSale calculates line totals, total revenue, profit,
 });
 
 test('AC-003 & FAIL-004: recordMultiItemSale strictly blocks oversale and performs zero partial deductions', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const rebar12 = state.materials.find((m) => m.id === 'mat_rebar_12')!;
   const tiles = state.materials.find((m) => m.id === 'mat_tile_60x60')!;
 
@@ -279,7 +290,7 @@ test('AC-003 & FAIL-004: recordMultiItemSale strictly blocks oversale and perfor
 });
 
 test('BR-003: recordMultiItemSale aggregates duplicate materialId lines and blocks if combined quantity exceeds stock', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const tiles = state.materials.find((m) => m.id === 'mat_tile_60x60')!;
 
   assert.throws(
@@ -301,7 +312,7 @@ test('BR-003: recordMultiItemSale aggregates duplicate materialId lines and bloc
 });
 
 test('AC-004 & BR-006: recordStockIn increments stock, calculates weighted-average unitCost, and logs StockInRecord', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const cement = state.materials.find((m) => m.id === 'mat_cement_opc')!;
   cement.currentStock = 100;
   cement.unitCost = 1000;
@@ -322,7 +333,7 @@ test('AC-004 & BR-006: recordStockIn increments stock, calculates weighted-avera
 });
 
 test('BR-006 & BR-007: recordStockIn handles zero previousStock and preserves historical sale profit', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const wire = state.materials.find((m) => m.id === 'mat_wire_bind')!;
   wire.currentStock = 10;
   wire.unitCost = 200;
@@ -351,7 +362,7 @@ test('BR-006 & BR-007: recordStockIn handles zero previousStock and preserves hi
 test('VAL-003 & VAL-004: recordStockIn rejects non-positive quantityAdded or negative unitPurchaseCost', () => {
   assert.equal(calculateWeightedAverageCost(0, 800, 50, 900), 900);
 
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const cement = state.materials.find((m) => m.id === 'mat_cement_opc')!;
 
   assert.throws(
@@ -382,7 +393,7 @@ test('VAL-003 & VAL-004: recordStockIn rejects non-positive quantityAdded or neg
 });
 
 test('AC-005 & BR-008: recordStockAudit reconciles physical ground count, computes variance, and leaves unaudited items untouched', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const paint = state.materials.find((m) => m.id === 'mat_paint_20l')!;
   const rebar12 = state.materials.find((m) => m.id === 'mat_rebar_12')!;
   const cement = state.materials.find((m) => m.id === 'mat_cement_opc')!;
@@ -424,7 +435,7 @@ test('AC-005 & BR-008: recordStockAudit reconciles physical ground count, comput
 });
 
 test('VAL-003, VAL-006 & VAL-007: recordStockAudit rejects empty batch, negative physicalCount, and unknown materialId', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const paint = state.materials.find((m) => m.id === 'mat_paint_20l')!;
 
   // Empty batch (VAL-006)
@@ -465,7 +476,7 @@ test('FEATURE 1: AuthEngine hashes passwords securely, authenticates pre-registe
   assert.equal(verifyPassword('StrongPass#2026', hash), true);
   assert.equal(verifyPassword('WrongPass', hash), false);
 
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const sessions = new Map<string, ActiveSession>();
   ensureInitialAdminProvisioned(state);
   assert.equal(state.users!.length, 1);
@@ -532,7 +543,7 @@ test('FEATURE 1: AuthEngine hashes passwords securely, authenticates pre-registe
 });
 
 test('FEATURE 2A: deleteMaterial deletes unused material, blocks deleting material with history, and supports archiving', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const unusedMat = state.materials.find((m) => m.id === 'mat_wire_bind')!;
   const usedMat = state.materials.find((m) => m.id === 'mat_cement_opc')!;
 
@@ -566,7 +577,7 @@ test('FEATURE 2A: deleteMaterial deletes unused material, blocks deleting materi
 });
 
 test('FEATURE 2B: createCategory and deleteCategory allow deleting unused categories and block deleting categories in use', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
 
   const customCat = createCategory(state, { name: 'Plumbing & PVC Pipes' });
   assert.equal(customCat.id, 'plumbing_pvc_pipes');
@@ -583,7 +594,7 @@ test('FEATURE 2B: createCategory and deleteCategory allow deleting unused catego
 });
 
 test('FEATURE 2C, 2D, 2E: Reversing Sales, Stock-In, and Audits restores stock accurately and blocks duplicate reversals', () => {
-  const state = createInitialErpState();
+  const state = createInitialErpState({ seedDemoData: true });
   const cement = state.materials.find((m) => m.id === 'mat_cement_opc')!;
   const initialStock = cement.currentStock; // 180
   const initialCost = cement.unitCost; // 1120

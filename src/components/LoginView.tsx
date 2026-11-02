@@ -60,7 +60,7 @@ export const LoginView: React.FC = () => {
       <header className="max-w-md w-full mx-auto flex items-center justify-between pt-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-[#B84A14] text-[#FFFFFF] flex items-center justify-center font-bold text-sm">
-            ERP
+            EFA
           </div>
           <span className="text-sm font-bold text-[#14171A]">{t.appTitle}</span>
         </div>

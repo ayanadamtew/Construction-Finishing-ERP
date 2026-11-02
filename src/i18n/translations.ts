@@ -211,7 +211,7 @@ export interface TranslationDictionary {
 
 export const TRANSLATIONS: Record<LanguageCode, TranslationDictionary> = {
   en: {
-    appTitle: 'Construction & Finishing ERP',
+    appTitle: 'EFA',
     appSubtitle: 'SKU-Free Store Inventory, Multi-Item POS & Ground Audit',
     currencyLabel: 'ETB',
     languageLabel: 'Language',
@@ -478,7 +478,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationDictionary> = {
     },
   },
   am: {
-    appTitle: 'የኮንስትራክሽን እና ፊኒሺንግ ERP',
+    appTitle: 'EFA',
     appSubtitle: 'ያለ SKU የንብረት ቁጥጥር፣ የሽያጭ እና የመሬት ላይ ቆጠራ ሲስተም',
     currencyLabel: 'ብር (ETB)',
     languageLabel: 'ቋንቋ',
@@ -740,7 +740,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationDictionary> = {
     },
   },
   om: {
-    appTitle: 'ERP Meeshaalee Ijaarsaa fi Xumuraa',
+    appTitle: 'EFA',
     appSubtitle: 'To’annoo Kuusaa SKU-Maleessa, Gurgurtaa POS fi Lakkoofsa Lafaa',
     currencyLabel: 'ETB',
     languageLabel: 'Afaan',

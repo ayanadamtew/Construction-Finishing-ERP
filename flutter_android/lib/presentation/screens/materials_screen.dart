@@ -5,6 +5,7 @@ import '../../domain/models/erp_models.dart';
 import '../../domain/services/inventory_engine.dart';
 import '../providers/erp_providers.dart';
 import '../widgets/erp_components.dart';
+import 'admin_management_sheet.dart';
 import 'confirm_action_dialog.dart';
 
 /// `SCR-02` & `SCR-03` — Redesigned Material Catalog, Search/Filter, Detail Sheet & Add/Edit Form
@@ -18,7 +19,23 @@ class MaterialsScreen extends ConsumerStatefulWidget {
 class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
   String _searchQuery = '';
   String _selectedCategory = 'all';
+  bool _lowStockOnly = false;
   bool _showArchived = false;
+
+  bool get _hasActiveFilters =>
+      _searchQuery.trim().isNotEmpty ||
+      _selectedCategory != 'all' ||
+      _lowStockOnly ||
+      _showArchived;
+
+  void _resetFilters() {
+    setState(() {
+      _searchQuery = '';
+      _selectedCategory = 'all';
+      _lowStockOnly = false;
+      _showArchived = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +48,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
 
     final filtered = erpState.materials.where((m) {
       if (!_showArchived && m.isArchived) return false;
+      if (_lowStockOnly && m.currentStock > m.minStockLevel) return false;
       final matchesCategory = _selectedCategory == 'all' ||
           m.effectiveCategoryCode == _selectedCategory;
       final q = _searchQuery.trim().toLowerCase();
@@ -42,6 +60,9 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
 
     final archivedCount =
         erpState.materials.where((m) => m.isArchived).length;
+    final lowStockCount = erpState.materials
+        .where((m) => !m.isArchived && m.currentStock <= m.minStockLevel)
+        .length;
 
     return Scaffold(
       backgroundColor: ErpColors.bgPrimary,
@@ -68,10 +89,36 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ErpSearchBar(
-                  hintText: i18n.t('searchMaterialsHint'),
-                  value: _searchQuery,
-                  onChanged: (v) => setState(() => _searchQuery = v),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ErpSearchBar(
+                        hintText: i18n.t('searchMaterialsHint'),
+                        value: _searchQuery,
+                        onChanged: (v) => setState(() => _searchQuery = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: i18n.t('tabCategories'),
+                      onPressed: () => AdminManagementSheet.show(
+                        context,
+                        initialTabIndex: 1,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: ErpColors.surfaceElevated,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: const BorderSide(color: ErpColors.borderSubtle),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.category_outlined,
+                        size: 19,
+                        color: ErpColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 SingleChildScrollView(
@@ -82,6 +129,14 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                         label: i18n.t('filterAllCategories'),
                         isSelected: _selectedCategory == 'all',
                         onTap: () => setState(() => _selectedCategory = 'all'),
+                      ),
+                      const SizedBox(width: 6),
+                      _CategoryChip(
+                        label:
+                            '${i18n.t('lowStockOnlyFilter')} ($lowStockCount)',
+                        isSelected: _lowStockOnly,
+                        onTap: () =>
+                            setState(() => _lowStockOnly = !_lowStockOnly),
                       ),
                       ...categories.map(
                         (c) => Padding(
@@ -95,7 +150,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                           ),
                         ),
                       ),
-                      if (archivedCount > 0) ...[
+                      if (archivedCount > 0 || _showArchived) ...[
                         const SizedBox(width: 8),
                         _CategoryChip(
                           label: '${i18n.t('badgeArchived')} ($archivedCount)',
@@ -121,8 +176,12 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                       child: ErpEmptyState(
                         icon: Icons.inventory_2_outlined,
                         title: i18n.t('kpiMaterialsCount'),
-                        actionLabel: i18n.t('btnRegisterMaterial'),
-                        onAction: () => _showMaterialModal(context, null),
+                        actionLabel: _hasActiveFilters
+                            ? i18n.t('resetFiltersBtn')
+                            : i18n.t('btnRegisterMaterial'),
+                        onAction: _hasActiveFilters
+                            ? _resetFilters
+                            : () => _showMaterialModal(context, null),
                       ),
                     ),
                   )
@@ -214,14 +273,48 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              if (!m.isArchived) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ErpButton(
+                        label: i18n.t('btnSellInPos'),
+                        icon: Icons.point_of_sale_rounded,
+                        variant: ErpButtonVariant.primary,
+                        isFullWidth: true,
+                        onPressed: m.isOutOfStock
+                            ? null
+                            : () {
+                                Navigator.of(sheetCtx).pop();
+                                controller.sellMaterialInPos(m);
+                              },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ErpButton(
+                        label: i18n.t('btnRestockMaterial'),
+                        icon: Icons.south_west_rounded,
+                        variant: ErpButtonVariant.secondary,
+                        isFullWidth: true,
+                        onPressed: () {
+                          Navigator.of(sheetCtx).pop();
+                          controller.openStockInForMaterial(m.id);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
                     child: ErpButton(
                       label: i18n.t('btnEditMetadata'),
                       icon: Icons.edit_outlined,
-                      variant: ErpButtonVariant.primary,
+                      variant: ErpButtonVariant.secondary,
                       isFullWidth: true,
                       onPressed: () {
                         Navigator.of(sheetCtx).pop();
@@ -315,6 +408,8 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
     final categories = viewState.erpState.categories.isNotEmpty
         ? viewState.erpState.categories
         : InventoryEngine.createDefaultCategories();
+    final isUsed = existing != null &&
+        InventoryEngine.isMaterialUsed(viewState.erpState, existing.id);
 
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final specsCtrl = TextEditingController(text: existing?.specs ?? '');
@@ -389,7 +484,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                     prefixIcon: Icons.straighten_rounded,
                   ),
                   const SizedBox(height: 10),
-                  if (existing == null) ...[
+                  if (existing == null || !isUsed) ...[
                     DropdownButtonFormField<MaterialUnit>(
                       value: selectedUnit,
                       isExpanded: true,
@@ -411,6 +506,24 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                       },
                     ),
                     const SizedBox(height: 10),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ErpColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        i18n.t('lockedUnitNotice'),
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: ErpColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  if (existing == null) ...[
                     Row(
                       children: [
                         Expanded(
@@ -529,6 +642,7 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
                                   ),
                                   categoryCode: selectedCategoryCode,
                                   specs: specsCtrl.text,
+                                  unit: isUsed ? null : selectedUnit,
                                   minStockLevel:
                                       double.tryParse(minStockCtrl.text) ?? 0,
                                   defaultSellingPrice:

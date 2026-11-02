@@ -5,24 +5,67 @@ import '../providers/erp_providers.dart';
 import '../widgets/erp_components.dart';
 import 'confirm_action_dialog.dart';
 
-/// `SCR-07` — Redesigned Immutable Transaction History Ledger (Sales, Stock-In, Audits) with Reversals
-class HistoryScreen extends ConsumerWidget {
+/// `SCR-07` — Redesigned Immutable Transaction History Ledger (All, Sales, Stock-In, Audits) with Search & Reversals
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final viewState = ref.watch(erpControllerProvider);
     final controller = ref.read(erpControllerProvider.notifier);
     final i18n = viewState.i18n;
     final erp = viewState.erpState;
+    final q = _searchQuery.trim().toLowerCase();
+
+    final filteredSales = erp.sales.where((s) {
+      if (q.isEmpty) return true;
+      return s.id.toLowerCase().contains(q) ||
+          s.customerNote.toLowerCase().contains(q) ||
+          s.items.any((i) => i.materialName.toLowerCase().contains(q));
+    }).toList();
+
+    final filteredStockIns = erp.stockIns.where((s) {
+      if (q.isEmpty) return true;
+      return s.id.toLowerCase().contains(q) ||
+          s.materialName.toLowerCase().contains(q) ||
+          s.supplierNote.toLowerCase().contains(q);
+    }).toList();
+
+    final filteredAudits = erp.audits.where((a) {
+      if (q.isEmpty) return true;
+      return a.id.toLowerCase().contains(q) ||
+          a.auditNote.toLowerCase().contains(q) ||
+          a.adjustments.any((adj) => adj.materialName.toLowerCase().contains(q));
+    }).toList();
+
+    final totalAllCount =
+        filteredSales.length + filteredStockIns.length + filteredAudits.length;
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: [
           Container(
             color: ErpColors.surfaceCard,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            child: ErpSearchBar(
+              hintText: i18n.t('searchLedgerHint'),
+              value: _searchQuery,
+              onChanged: (v) => setState(() => _searchQuery = v),
+            ),
+          ),
+          Container(
+            color: ErpColors.surfaceCard,
             child: TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               labelColor: ErpColors.primaryDark,
               unselectedLabelColor: ErpColors.textSecondary,
               indicatorColor: ErpColors.primary,
@@ -35,17 +78,92 @@ class HistoryScreen extends ConsumerWidget {
                 fontWeight: FontWeight.w500,
               ),
               tabs: [
-                Tab(text: '${i18n.t('tabSales')} (${erp.sales.length})'),
-                Tab(text: '${i18n.t('tabStockIn')} (${erp.stockIns.length})'),
-                Tab(text: '${i18n.t('tabAudits')} (${erp.audits.length})'),
+                Tab(text: '${i18n.t('tabAll')} ($totalAllCount)'),
+                Tab(text: '${i18n.t('tabSales')} (${filteredSales.length})'),
+                Tab(
+                  text: '${i18n.t('tabStockIn')} (${filteredStockIns.length})',
+                ),
+                Tab(text: '${i18n.t('tabAudits')} (${filteredAudits.length})'),
               ],
             ),
           ),
           Expanded(
             child: TabBarView(
               children: [
+                // 0. Unified "All" Chronological Feed Tab
+                totalAllCount == 0
+                    ? Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Center(
+                          child: ErpEmptyState(
+                            icon: Icons.receipt_long_outlined,
+                            title: i18n.t('noRecentSales'),
+                          ),
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.all(14),
+                        children: [
+                          ...filteredSales.map(
+                            (sale) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: ErpTransactionListItem(
+                                title: sale.customerNote.isNotEmpty
+                                    ? sale.customerNote
+                                    : sale.id.toUpperCase(),
+                                subtitle:
+                                    '${i18n.t('tabSales')} • ${sale.id.toUpperCase()} • ${sale.createdAt.split('T').first}',
+                                amountText: formatETB(sale.totalAmount),
+                                secondaryAmountText:
+                                    '+${formatETB(sale.totalProfit)} ${i18n.t('profitLabel')}',
+                                isReversed: sale.isReversed,
+                                statusBadgeText: sale.isReversed
+                                    ? i18n.t('badgeReversed')
+                                    : null,
+                              ),
+                            ),
+                          ),
+                          ...filteredStockIns.map(
+                            (stin) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: ErpTransactionListItem(
+                                title: stin.materialName,
+                                subtitle:
+                                    '${i18n.t('tabStockIn')} • ${stin.id.toUpperCase()} • ${stin.createdAt.split('T').first}',
+                                amountText:
+                                    '+${formatQty(stin.quantityAdded)} ${i18n.unitLabel(stin.unit.code)}',
+                                secondaryAmountText:
+                                    formatETB(stin.totalPurchaseCost),
+                                isReversed: stin.isReversed,
+                                statusBadgeText: stin.isReversed
+                                    ? i18n.t('badgeReversed')
+                                    : null,
+                              ),
+                            ),
+                          ),
+                          ...filteredAudits.map(
+                            (aud) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: ErpTransactionListItem(
+                                title: aud.auditNote.isNotEmpty
+                                    ? aud.auditNote
+                                    : aud.id.toUpperCase(),
+                                subtitle:
+                                    '${i18n.t('tabAudits')} • ${aud.id.toUpperCase()} • ${aud.createdAt.split('T').first}',
+                                amountText:
+                                    '${aud.adjustments.length} ${i18n.t('itemsCount')}',
+                                isReversed: aud.isReversed,
+                                statusBadgeText: aud.isReversed
+                                    ? i18n.t('badgeReversed')
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
                 // 1. Sales Receipts Tab
-                erp.sales.isEmpty
+                filteredSales.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(20),
                         child: Center(
@@ -57,10 +175,10 @@ class HistoryScreen extends ConsumerWidget {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(14),
-                        itemCount: erp.sales.length,
+                        itemCount: filteredSales.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (ctx, idx) {
-                          final sale = erp.sales[idx];
+                          final sale = filteredSales[idx];
                           final dateStr = sale.createdAt.split('T').first;
                           return Container(
                             padding: const EdgeInsets.all(14),
@@ -229,7 +347,7 @@ class HistoryScreen extends ConsumerWidget {
                       ),
 
                 // 2. Stock-In Deliveries Tab
-                erp.stockIns.isEmpty
+                filteredStockIns.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(20),
                         child: Center(
@@ -241,10 +359,10 @@ class HistoryScreen extends ConsumerWidget {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(14),
-                        itemCount: erp.stockIns.length,
+                        itemCount: filteredStockIns.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (ctx, idx) {
-                          final stin = erp.stockIns[idx];
+                          final stin = filteredStockIns[idx];
                           return Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
@@ -367,7 +485,7 @@ class HistoryScreen extends ConsumerWidget {
                       ),
 
                 // 3. Stock Audits Tab
-                erp.audits.isEmpty
+                filteredAudits.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(20),
                         child: Center(
@@ -379,10 +497,10 @@ class HistoryScreen extends ConsumerWidget {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(14),
-                        itemCount: erp.audits.length,
+                        itemCount: filteredAudits.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (ctx, idx) {
-                          final aud = erp.audits[idx];
+                          final aud = filteredAudits[idx];
                           return Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(

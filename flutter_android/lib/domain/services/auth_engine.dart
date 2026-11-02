@@ -216,7 +216,7 @@ class AuthEngine {
   /// Creates the initial bootstrap administrator account when the database is empty.
   static UserAccount createDefaultAdminUser({
     String username = 'admin',
-    String email = 'admin@senayerp.local',
+    String email = 'admin@efa.local',
     String fullName = 'System Administrator',
     String initialPassword = r'Admin@12345',
     String? nowIso,
@@ -265,8 +265,12 @@ class AuthEngine {
 
     UserAccount? matched;
     for (final UserAccount u in users) {
+      final isLegacyOrEfaAdminAlias = u.id == 'USR-ADMIN-001' &&
+          (identifier == 'admin@efa.local' ||
+              identifier == 'admin@senayerp.local');
       if (u.username.toLowerCase() == identifier ||
-          u.email.toLowerCase() == identifier) {
+          u.email.toLowerCase() == identifier ||
+          isLegacyOrEfaAdminAlias) {
         matched = u;
         break;
       }

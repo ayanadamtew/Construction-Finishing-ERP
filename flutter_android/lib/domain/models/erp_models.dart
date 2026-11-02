@@ -770,6 +770,7 @@ class UpdateMaterialInput {
   final MaterialCategory? category;
   final String? categoryCode;
   final String? specs;
+  final MaterialUnit? unit;
   final double? minStockLevel;
   final double? defaultSellingPrice;
   final Map<String, dynamic>? rawAttemptedFields;
@@ -779,6 +780,7 @@ class UpdateMaterialInput {
     this.category,
     this.categoryCode,
     this.specs,
+    this.unit,
     this.minStockLevel,
     this.defaultSellingPrice,
     this.rawAttemptedFields,

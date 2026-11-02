@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:construction_material_erp/core/constants/erp_constants.dart';
 import 'package:construction_material_erp/core/errors/domain_error.dart';
@@ -6,6 +8,7 @@ import 'package:construction_material_erp/domain/models/erp_models.dart';
 import 'package:construction_material_erp/domain/services/auth_engine.dart';
 import 'package:construction_material_erp/domain/services/inventory_engine.dart';
 import 'package:construction_material_erp/l10n/erp_localizations.dart';
+import 'package:construction_material_erp/main.dart';
 import 'package:construction_material_erp/presentation/providers/erp_providers.dart';
 
 void main() {
@@ -42,6 +45,33 @@ void main() {
             name: 'Updated Name',
             rawAttemptedFields: {'currentStock': 999},
           ),
+        ),
+        throwsA(
+          isA<AppDomainError>().having(
+            (e) => e.code,
+            'code',
+            'IMMUTABLE_FIELD_VIOLATION',
+          ),
+        ),
+      );
+    });
+
+    test('BR-001 Parity: allows updating unit on unused material and blocks unit update on used material', () {
+      final seed = InventoryEngine.createSeedState();
+      // mat-cement-derba is unused in seed state
+      final updatedUnused = InventoryEngine.updateMaterialMetadata(
+        seed,
+        'mat-cement-derba',
+        const UpdateMaterialInput(unit: MaterialUnit.kg),
+      );
+      expect(updatedUnused.material.unit, MaterialUnit.kg);
+
+      // mat-cement-dangote is used in sale-seed-001 and stin-seed-001
+      expect(
+        () => InventoryEngine.updateMaterialMetadata(
+          seed,
+          'mat-cement-dangote',
+          const UpdateMaterialInput(unit: MaterialUnit.kg),
         ),
         throwsA(
           isA<AppDomainError>().having(
@@ -117,6 +147,57 @@ void main() {
     });
   });
 
+  group('Production Data Cleanup & Sample Removal Tests', () {
+    test('createProductionState initializes with 0 sample materials and transactions while keeping default categories', () {
+      final prod = InventoryEngine.createProductionState();
+      expect(prod.materials, isEmpty);
+      expect(prod.sales, isEmpty);
+      expect(prod.stockIns, isEmpty);
+      expect(prod.audits, isEmpty);
+      expect(prod.categories.length, 6);
+      expect(prod.summary.totalMaterials, 0);
+      expect(prod.summary.cumulativeSalesRevenue, 0);
+    });
+
+    test('cleanupSampleData removes known sample records while preserving genuine user materials and transactions', () {
+      final seedWithSample = InventoryEngine.createSeedState();
+      // Add a genuine user material and sale
+      final registered = InventoryEngine.registerMaterial(
+        seedWithSample,
+        const RegisterMaterialInput(
+          name: 'Genuine Customer Marble Slab',
+          category: MaterialCategory.ceramics,
+          specs: '120x60cm',
+          unit: MaterialUnit.pcs,
+          currentStock: 25,
+          minStockLevel: 5,
+          unitCost: 1400,
+          defaultSellingPrice: 1850,
+        ),
+      );
+      final withGenuineSale = InventoryEngine.recordSale(
+        registered.state,
+        RecordSaleInput(
+          customerNote: 'Genuine Invoice #101',
+          items: [
+            SaleCartLineInput(
+              materialId: registered.material.id,
+              quantity: 5,
+              unitSellingPrice: 1850,
+            ),
+          ],
+        ),
+      );
+
+      final cleaned = InventoryEngine.cleanupSampleData(withGenuineSale.state);
+      expect(cleaned.materials.length, 1);
+      expect(cleaned.materials.first.id, registered.material.id);
+      expect(cleaned.sales.length, 1);
+      expect(cleaned.sales.first.customerNote, 'Genuine Invoice #101');
+      expect(cleaned.stockIns, isEmpty);
+    });
+  });
+
   group('AuthEngine Pre-Registered Credentials & User Security Tests (FR-021 to FR-025)', () {
     test('hashes passwords with PBKDF2-SHA256 and authenticates valid username or email', () {
       final admin = AuthEngine.createDefaultAdminUser();
@@ -130,12 +211,19 @@ void main() {
       );
       expect(byUsername.username, 'admin');
 
-      final byEmail = AuthEngine.authenticateUser(
+      final byEfaEmail = AuthEngine.authenticateUser(
+        users: [admin],
+        usernameOrEmail: 'admin@efa.local',
+        password: r'Admin@12345',
+      );
+      expect(byEfaEmail.id, admin.id);
+
+      final byLegacyEmail = AuthEngine.authenticateUser(
         users: [admin],
         usernameOrEmail: 'admin@senayerp.local',
         password: r'Admin@12345',
       );
-      expect(byEmail.id, admin.id);
+      expect(byLegacyEmail.id, admin.id);
     });
 
     test('rejects unknown username, wrong password, and deactivated user', () {
@@ -144,7 +232,7 @@ void main() {
         users: [admin],
         input: const CreateUserInput(
           username: 'cashier1',
-          email: 'cashier1@senayerp.local',
+          email: 'cashier1@efa.local',
           fullName: 'Kebede Cashier',
           role: UserRole.staff,
           password: 'StaffPassword1',
@@ -555,9 +643,24 @@ void main() {
     });
   });
 
-  group('ErpController State & Trilingual Draft Preservation (FAIL-003)', () {
+  group('ErpController State, EFA Metadata & Trilingual Draft Preservation', () {
+    test('EFA application metadata and developer information match exact project specifications', () {
+      expect(ErpAppInfo.appName, 'EFA');
+      expect(ErpAppInfo.developerName, 'Ayana Damtew');
+      expect(ErpAppInfo.developerPhone, '+251973395537');
+      expect(ErpAppInfo.appVersion, '1.0.0');
+      expect(ErpAppInfo.buildNumber, '1');
+      expect(ErpAppInfo.appDescription, isNotEmpty);
+
+      for (final lang in AppLanguage.values) {
+        final i18n = ErpLocalizations(lang);
+        expect(i18n.t('appTitle'), 'EFA');
+        expect(i18n.t('aboutEfaTitle').contains('EFA'), isTrue);
+      }
+    });
+
     test('FAIL-003: switching languages preserves draft POS cart and audit counts', () {
-      final repo = ErpRepository();
+      final repo = ErpRepository(seedDemoData: true);
       final controller = ErpController(repo);
 
       controller.addOrUpdateCartItem(
@@ -604,13 +707,31 @@ void main() {
       expect(repo.syncWithCompanionServer, false);
     });
 
-    test('supports 5-tab navigation helpers (Inventory and More sub-tabs) and concise trilingual labels', () {
-      final repo = ErpRepository();
+    test('supports 5-tab navigation helpers, Stock-In deep link, and POS cart quantity/clear helpers', () {
+      final repo = ErpRepository(seedDemoData: true);
       final controller = ErpController(repo);
 
       controller.openInventorySubTab(1);
       expect(controller.state.activeTabIndex, 3);
       expect(controller.state.inventorySubTab, 1);
+
+      controller.openStockInForMaterial('mat-rebar-16mm');
+      expect(controller.state.activeTabIndex, 3);
+      expect(controller.state.inventorySubTab, 0);
+      expect(controller.state.selectedStockInMaterialId, 'mat-rebar-16mm');
+
+      controller.addOrUpdateCartItem(
+        const SaleCartLineInput(
+          materialId: 'mat-rebar-12mm',
+          quantity: 4,
+          unitSellingPrice: 980,
+        ),
+      );
+      controller.setCartItemQuantity('mat-rebar-12mm', 7);
+      expect(controller.state.draftCart.first.quantity, 7);
+
+      controller.clearDraftCart();
+      expect(controller.state.draftCart, isEmpty);
 
       controller.openMoreSubTab(2);
       expect(controller.state.activeTabIndex, 4);
@@ -625,6 +746,59 @@ void main() {
         expect(i18n.t('navMore').isNotEmpty, isTrue);
       }
     });
+  });
+
+  group('EFA UI Widget & Bottom Navigation Overflow Tests (320dp, 360dp, 412dp)', () {
+    testWidgets(
+      'renders EFA login, bottom navigation (including Inventory), and About EFA without pixel overflow across screen widths and languages',
+      (WidgetTester tester) async {
+        final repo = ErpRepository();
+        final controller = ErpController(repo);
+        await controller.login('admin', r'Admin@12345');
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              erpRepositoryProvider.overrideWithValue(repo),
+              erpControllerProvider.overrideWith((ref) => controller),
+            ],
+            child: const EfaErpApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final width in <double>[320, 360, 412]) {
+          tester.view.physicalSize = Size(width, 800);
+          tester.view.devicePixelRatio = 1.0;
+
+          for (final lang in AppLanguage.values) {
+            controller.setLanguage(lang);
+            await tester.pumpAndSettle();
+
+            final i18n = ErpLocalizations(lang);
+            expect(find.text(i18n.t('navDashboard')), findsWidgets);
+            expect(find.text(i18n.t('navMaterials')), findsWidgets);
+            expect(find.text(i18n.t('navSales')), findsWidgets);
+            expect(find.text(i18n.t('navInventory')), findsWidgets);
+            expect(find.text(i18n.t('navMore')), findsWidgets);
+            expect(tester.takeException(), isNull);
+          }
+        }
+
+        // Reset to English and verify Settings -> About EFA section
+        controller.setLanguage(AppLanguage.en);
+        controller.openMoreSubTab(2);
+        await tester.pumpAndSettle();
+
+        expect(find.text('About EFA'), findsOneWidget);
+        expect(find.text('Ayana Damtew'), findsOneWidget);
+        expect(find.text('+251973395537'), findsOneWidget);
+        expect(find.text('1.0.0'), findsOneWidget);
+
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      },
+    );
   });
 }
 

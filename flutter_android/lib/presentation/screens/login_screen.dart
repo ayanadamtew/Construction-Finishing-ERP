@@ -84,15 +84,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                i18n.t('appTitle'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: ErpColors.textPrimary,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    i18n.t('appTitle'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: ErpColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    i18n.t('appSubtitle'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      color: ErpColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -266,6 +283,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     variant: ErpButtonVariant.primary,
                     isFullWidth: true,
                     onPressed: _isSubmitting ? null : _submitLogin,
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: ErpColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          size: 15,
+                          color: ErpColors.textSecondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            i18n.t('loginNoPublicSignupNotice'),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: ErpColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

@@ -1176,13 +1176,30 @@ export function reverseStockAuditRecord(
   return audit;
 }
 
+export const KNOWN_SAMPLE_MATERIAL_IDS = new Set<string>([
+  'mat_rebar_12',
+  'mat_rebar_16',
+  'mat_cement_opc',
+  'mat_tile_60x60',
+  'mat_paint_20l',
+  'mat_wire_bind',
+  'mat-rebar-12mm',
+  'mat-rebar-16mm',
+  'mat-cement-dangote',
+  'mat-cement-derba',
+  'mat-tiles-porcelain-60',
+  'mat-paint-kadisco-white',
+  'mat-hardware-binding-wire',
+]);
+
 /**
- * Creates the deterministic initial seed state for a Construction & Finishing Material Store.
+ * Returns deterministic sample materials strictly for automated unit tests.
+ * Never used in production initialization.
  */
-export function createInitialErpState(): ErpState {
-  const timestamp = '2026-10-30T08:00:00.000Z';
-  const categories = createDefaultCategories(timestamp);
-  const materials: Material[] = [
+export function createDemoSeedMaterials(
+  timestamp: string = '2026-10-30T08:00:00.000Z'
+): Material[] {
+  return [
     {
       id: 'mat_rebar_12',
       name: 'Deformed Rebar 12mm',
@@ -1268,6 +1285,21 @@ export function createInitialErpState(): ErpState {
       updatedAt: timestamp,
     },
   ];
+}
+
+/**
+ * Creates the initial ERP state.
+ * In production (default), no sample/demo materials or transactions are seeded.
+ * Pass `{ seedDemoData: true }` only in automated test suites.
+ */
+export function createInitialErpState(options?: {
+  seedDemoData?: boolean;
+}): ErpState {
+  const timestamp = '2026-10-30T08:00:00.000Z';
+  const categories = createDefaultCategories(timestamp);
+  const materials: Material[] = options?.seedDemoData
+    ? createDemoSeedMaterials(timestamp)
+    : [];
 
   const sales: SaleTransaction[] = [];
   const stockIns: StockInRecord[] = [];
@@ -1282,3 +1314,4 @@ export function createInitialErpState(): ErpState {
     summary: calculateStoreSummary(materials, sales),
   };
 }
+

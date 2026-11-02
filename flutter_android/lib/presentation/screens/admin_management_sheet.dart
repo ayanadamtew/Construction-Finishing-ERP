@@ -8,9 +8,17 @@ import 'confirm_action_dialog.dart';
 
 /// `SCR-08` — Redesigned Administrator User & Category Management Modal Sheet
 class AdminManagementSheet extends ConsumerStatefulWidget {
-  const AdminManagementSheet({super.key});
+  final int initialTabIndex;
 
-  static Future<void> show(BuildContext context) {
+  const AdminManagementSheet({
+    super.key,
+    this.initialTabIndex = 0,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    int initialTabIndex = 0,
+  }) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -21,7 +29,7 @@ class AdminManagementSheet extends ConsumerStatefulWidget {
           color: ErpColors.surfaceCard,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: const AdminManagementSheet(),
+        child: AdminManagementSheet(initialTabIndex: initialTabIndex),
       ),
     );
   }
@@ -64,6 +72,7 @@ class _AdminManagementSheetState extends ConsumerState<AdminManagementSheet> {
 
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTabIndex.clamp(0, 1),
       child: Column(
         children: [
           const SizedBox(height: 10),

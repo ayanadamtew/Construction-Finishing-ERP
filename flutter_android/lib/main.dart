@@ -14,13 +14,15 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const ProviderScope(
-      child: SenayConstructionErpApp(),
+      child: EfaErpApp(),
     ),
   );
 }
 
-class SenayConstructionErpApp extends ConsumerWidget {
-  const SenayConstructionErpApp({super.key});
+typedef SenayConstructionErpApp = EfaErpApp;
+
+class EfaErpApp extends ConsumerWidget {
+  const EfaErpApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,7 +48,7 @@ class SenayConstructionErpApp extends ConsumerWidget {
     final safeTabIndex = viewState.activeTabIndex.clamp(0, screens.length - 1);
 
     return MaterialApp(
-      title: i18n.t('appTitle'),
+      title: ErpAppInfo.appName,
       debugShowCheckedModeBanner: false,
       theme: ErpTheme.lightTheme,
       home: currentUser == null
@@ -70,15 +72,32 @@ class SenayConstructionErpApp extends ConsumerWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        i18n.t('appTitle'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          color: ErpColors.textPrimary,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            i18n.t('appTitle'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                              color: ErpColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            i18n.t('appSubtitle'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                              color: ErpColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -200,45 +219,147 @@ class SenayConstructionErpApp extends ConsumerWidget {
                   ),
                 ],
               ),
-              bottomNavigationBar: Container(
-                decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: ErpColors.borderSubtle),
+              bottomNavigationBar: _EfaBottomNavigationBar(
+                selectedIndex: safeTabIndex,
+                onDestinationSelected: controller.setActiveTab,
+                items: [
+                  _EfaNavItemData(
+                    icon: Icons.grid_view_outlined,
+                    selectedIcon: Icons.grid_view_rounded,
+                    label: i18n.t('navDashboard'),
                   ),
-                ),
-                child: NavigationBar(
-                  selectedIndex: safeTabIndex,
-                  onDestinationSelected: controller.setActiveTab,
-                  destinations: [
-                    NavigationDestination(
-                      icon: const Icon(Icons.grid_view_outlined),
-                      selectedIcon: const Icon(Icons.grid_view_rounded),
-                      label: i18n.t('navDashboard'),
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.inventory_2_outlined),
-                      selectedIcon: const Icon(Icons.inventory_2_rounded),
-                      label: i18n.t('navMaterials'),
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.point_of_sale_outlined),
-                      selectedIcon: const Icon(Icons.point_of_sale_rounded),
-                      label: i18n.t('navSales'),
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.warehouse_outlined),
-                      selectedIcon: const Icon(Icons.warehouse_rounded),
-                      label: i18n.t('navInventory'),
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.more_horiz_rounded),
-                      selectedIcon: const Icon(Icons.more_horiz_rounded),
-                      label: i18n.t('navMore'),
-                    ),
-                  ],
-                ),
+                  _EfaNavItemData(
+                    icon: Icons.inventory_2_outlined,
+                    selectedIcon: Icons.inventory_2_rounded,
+                    label: i18n.t('navMaterials'),
+                  ),
+                  _EfaNavItemData(
+                    icon: Icons.point_of_sale_outlined,
+                    selectedIcon: Icons.point_of_sale_rounded,
+                    label: i18n.t('navSales'),
+                  ),
+                  _EfaNavItemData(
+                    icon: Icons.warehouse_outlined,
+                    selectedIcon: Icons.warehouse_rounded,
+                    label: i18n.t('navInventory'),
+                  ),
+                  _EfaNavItemData(
+                    icon: Icons.more_horiz_rounded,
+                    selectedIcon: Icons.more_horiz_rounded,
+                    label: i18n.t('navMore'),
+                  ),
+                ],
               ),
             ),
+    );
+  }
+}
+
+class _EfaNavItemData {
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+
+  const _EfaNavItemData({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
+}
+
+/// Custom 5-item bottom navigation bar engineered to guarantee zero horizontal
+/// or vertical pixel overflow across compact screens (`320dp`, `360dp`, `390dp+`)
+/// and long trilingual labels (`en`, `am`, `om`).
+class _EfaBottomNavigationBar extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+  final List<_EfaNavItemData> items;
+
+  const _EfaBottomNavigationBar({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: ErpColors.surfaceCard,
+        border: Border(
+          top: BorderSide(color: ErpColors.borderSubtle),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 62,
+          child: Row(
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              final isSelected = index == selectedIndex;
+              return Expanded(
+                child: InkWell(
+                  key: ValueKey('nav_tab_$index'),
+                  onTap: () => onDestinationSelected(index),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 2,
+                      vertical: 6,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? ErpColors.primaryLight
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Icon(
+                            isSelected ? item.selectedIcon : item.icon,
+                            size: 20,
+                            color: isSelected
+                                ? ErpColors.primaryDark
+                                : ErpColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? ErpColors.textPrimary
+                                    : ErpColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
     );
   }
 }

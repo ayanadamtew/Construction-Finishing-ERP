@@ -1,0 +1,195 @@
+{
+  "materials": [
+    {
+      "id": "mat_rebar_12",
+      "name": {
+        "en": "Deformed Steel Rebar Ø12mm (12m Bar)",
+        "am": "የአርማታ ብረት Ø12ሚሜ (12 ሜትር)",
+        "om": "Sibiila Ijaarsaa Ø12mm (Meetira 12)"
+      },
+      "category": "rebar",
+      "unit": "piece",
+      "quantityOnHand": 240,
+      "minimumStockThreshold": 50,
+      "unitCost": 1520,
+      "sellingPrice": 1750,
+      "isArchived": false,
+      "createdAt": "2026-10-30T08:00:00.000Z",
+      "updatedAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "mat_rebar_16",
+      "name": {
+        "en": "Deformed Steel Rebar Ø16mm (12m Bar)",
+        "am": "የአርማታ ብረት Ø16ሚሜ (12 ሜትር)",
+        "om": "Sibiila Ijaarsaa Ø16mm (Meetira 12)"
+      },
+      "category": "rebar",
+      "unit": "piece",
+      "quantityOnHand": 32,
+      "minimumStockThreshold": 40,
+      "unitCost": 2680,
+      "sellingPrice": 3050,
+      "isArchived": false,
+      "createdAt": "2026-10-30T08:00:00.000Z",
+      "updatedAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "mat_cement_opc",
+      "name": {
+        "en": "Dangote OPC Cement 42.5R (50kg Bag)",
+        "am": "ዳንጎቴ ሲሚንቶ OPC 42.5R (50 ኪ.ግ)",
+        "om": "Simintoo Dangote OPC 42.5R (Kiiloo 50)"
+      },
+      "category": "cement",
+      "unit": "bag",
+      "quantityOnHand": 180,
+      "minimumStockThreshold": 60,
+      "unitCost": 1350,
+      "sellingPrice": 1520,
+      "isArchived": false,
+      "createdAt": "2026-10-30T08:00:00.000Z",
+      "updatedAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "mat_tile_60x60",
+      "name": {
+        "en": "Glazed Porcelain Floor Tile 60x60cm (Ivory)",
+        "am": "የወለል ሴራሚክ 60x60 ሴ.ሜ (አይቮሪ)",
+        "om": "Seeraamikii Lafaa 60x60cm (Ivory)"
+      },
+      "category": "tiles",
+      "unit": "sqm",
+      "quantityOnHand": 95,
+      "minimumStockThreshold": 30,
+      "unitCost": 980,
+      "sellingPrice": 1250,
+      "isArchived": false,
+      "createdAt": "2026-10-30T08:00:00.000Z",
+      "updatedAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "mat_paint_20l",
+      "name": {
+        "en": "Kadisco Super Acrylic Emulsion White (20L Pail)",
+        "am": "ካዲስኮ አክሪሊክ ነጭ ቀለም (20 ሊትር)",
+        "om": "Halluu Adii Kadisco Super Acrylic (Liitira 20)"
+      },
+      "category": "paint",
+      "unit": "tin",
+      "quantityOnHand": 14,
+      "minimumStockThreshold": 15,
+      "unitCost": 4100,
+      "sellingPrice": 4650,
+      "isArchived": false,
+      "createdAt": "2026-10-30T08:00:00.000Z",
+      "updatedAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "mat_wire_bind",
+      "name": {
+        "en": "Galvanized Annealed Binding Wire 1.5mm",
+        "am": "የአርማታ ማሰሪያ ሽቦ 1.5ሚሜ",
+        "om": "Shiboo Hidhaa Sibiilaa 1.5mm"
+      },
+      "category": "hardware",
+      "unit": "kg",
+      "quantityOnHand": 110,
+      "minimumStockThreshold": 25,
+      "unitCost": 185,
+      "sellingPrice": 230,
+      "isArchived": false,
+      "createdAt": "2026-10-30T08:00:00.000Z",
+      "updatedAt": "2026-10-30T08:00:00.000Z"
+    }
+  ],
+  "sales": [],
+  "stockIns": [],
+  "audits": [],
+  "categories": [
+    {
+      "id": "rebar",
+      "name": {
+        "en": "Rebar & Steel",
+        "am": "የአርማታ ብረት",
+        "om": "Sibiila Ijaarsaa"
+      },
+      "isSystem": true,
+      "createdAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "cement",
+      "name": {
+        "en": "Cement & Binders",
+        "am": "ሲሚንቶ",
+        "om": "Simintoo"
+      },
+      "isSystem": true,
+      "createdAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "tiles",
+      "name": {
+        "en": "Ceramics & Tiles",
+        "am": "ሴራሚክ እና ታይልስ",
+        "om": "Seeraamikii & Taayilsii"
+      },
+      "isSystem": true,
+      "createdAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "paint",
+      "name": {
+        "en": "Paints & Finishes",
+        "am": "ቀለም እና ማጠናቀቂያ",
+        "om": "Halluu & Miidhagina"
+      },
+      "isSystem": true,
+      "createdAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "hardware",
+      "name": {
+        "en": "Hardware & Wire",
+        "am": "ሃርድዌር እና ሽቦ",
+        "om": "Meoshaalee & Shiboo"
+      },
+      "isSystem": true,
+      "createdAt": "2026-10-30T08:00:00.000Z"
+    },
+    {
+      "id": "other",
+      "name": {
+        "en": "Other Materials",
+        "am": "ሌሎች ዕቃዎች",
+        "om": "Meeshaalee Biroo"
+      },
+      "isSystem": true,
+      "createdAt": "2026-10-30T08:00:00.000Z"
+    }
+  ],
+  "summary": {
+    "totalInventoryValue": 851610,
+    "totalPotentialRevenue": 996000,
+    "totalRevenue": 0,
+    "totalCostOfGoodsSold": 0,
+    "totalGrossProfit": 0,
+    "lowStockCount": 2,
+    "totalMaterialsCount": 6
+  },
+  "users": [
+    {
+      "id": "usr_admin_initial",
+      "username": "admin",
+      "email": "admin@senayerp.local",
+      "displayName": "System Administrator",
+      "role": "admin",
+      "passwordHash": "4dfaa9aa7f329cf6ee80f7f290e6e7d06929b8fa5c1c36f3384a54df140b44fe88b0314b801c60996c2a0c044a7dd9451fd759eb486ce4d0bb32d48f62503e52",
+      "passwordSalt": "dcff0e77e719816908d37c73915d8bf2",
+      "isActive": true,
+      "createdAt": "2026-04-12T10:02:13.213Z",
+      "updatedAt": "2026-04-12T10:02:13.213Z",
+      "lastLoginAt": "2026-04-12T10:07:36.224Z"
+    }
+  ]
+}

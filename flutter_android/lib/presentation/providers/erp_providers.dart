@@ -15,8 +15,10 @@ class ErpAppViewState {
   final int activeTabIndex;
   final int inventorySubTab;
   final int moreSubTab;
+  final String? selectedStockInMaterialId;
   final List<SaleCartLineInput> draftCart;
   final String draftCustomerNote;
+  final SaleTransaction? lastCompletedSale;
   final Map<String, double> draftAuditCounts;
   final String draftAuditNote;
   final bool isLoading;
@@ -32,8 +34,10 @@ class ErpAppViewState {
     this.activeTabIndex = 0,
     this.inventorySubTab = 0,
     this.moreSubTab = 0,
+    this.selectedStockInMaterialId,
     this.draftCart = const [],
     this.draftCustomerNote = '',
+    this.lastCompletedSale,
     this.draftAuditCounts = const {},
     this.draftAuditNote = '',
     this.isLoading = false,
@@ -56,8 +60,12 @@ class ErpAppViewState {
     int? activeTabIndex,
     int? inventorySubTab,
     int? moreSubTab,
+    String? selectedStockInMaterialId,
+    bool clearSelectedStockInMaterial = false,
     List<SaleCartLineInput>? draftCart,
     String? draftCustomerNote,
+    SaleTransaction? lastCompletedSale,
+    bool clearLastCompletedSale = false,
     Map<String, double>? draftAuditCounts,
     String? draftAuditNote,
     bool? isLoading,
@@ -75,8 +83,14 @@ class ErpAppViewState {
       activeTabIndex: activeTabIndex ?? this.activeTabIndex,
       inventorySubTab: inventorySubTab ?? this.inventorySubTab,
       moreSubTab: moreSubTab ?? this.moreSubTab,
+      selectedStockInMaterialId: clearSelectedStockInMaterial
+          ? null
+          : (selectedStockInMaterialId ?? this.selectedStockInMaterialId),
       draftCart: draftCart ?? this.draftCart,
       draftCustomerNote: draftCustomerNote ?? this.draftCustomerNote,
+      lastCompletedSale: clearLastCompletedSale
+          ? null
+          : (lastCompletedSale ?? this.lastCompletedSale),
       draftAuditCounts: draftAuditCounts ?? this.draftAuditCounts,
       draftAuditNote: draftAuditNote ?? this.draftAuditNote,
       isLoading: isLoading ?? this.isLoading,
@@ -93,7 +107,9 @@ class ErpController extends StateNotifier<ErpAppViewState> {
   ErpController(this._repository)
       : super(
           ErpAppViewState(
-            erpState: InventoryEngine.createSeedState(),
+            erpState: _repository.seedDemoData
+                ? InventoryEngine.createSeedState()
+                : InventoryEngine.createProductionState(),
             users: <UserAccount>[AuthEngine.createDefaultAdminUser()],
           ),
         ) {
@@ -125,6 +141,38 @@ class ErpController extends StateNotifier<ErpAppViewState> {
     );
   }
 
+  void openStockInForMaterial(String materialId) {
+    state = state.copyWith(
+      activeTabIndex: 3,
+      inventorySubTab: 0,
+      selectedStockInMaterialId: materialId,
+      clearBanner: true,
+    );
+  }
+
+  void selectStockInMaterial(String materialId) {
+    state = state.copyWith(
+      selectedStockInMaterialId: materialId,
+      clearBanner: true,
+    );
+  }
+
+  void sellMaterialInPos(MaterialItem material) {
+    if (material.currentStock > 0) {
+      addOrUpdateCartItem(
+        SaleCartLineInput(
+          materialId: material.id,
+          quantity: material.currentStock >= 1 ? 1 : material.currentStock,
+          unitSellingPrice: material.defaultSellingPrice,
+        ),
+      );
+    }
+    state = state.copyWith(
+      activeTabIndex: 2,
+      clearBanner: true,
+    );
+  }
+
   void openMoreSubTab(int subTab) {
     state = state.copyWith(
       activeTabIndex: 4,
@@ -135,6 +183,10 @@ class ErpController extends StateNotifier<ErpAppViewState> {
 
   void clearBanner() {
     state = state.copyWith(clearBanner: true);
+  }
+
+  void dismissLastCompletedSale() {
+    state = state.copyWith(clearLastCompletedSale: true);
   }
 
   Future<bool> login(String usernameOrEmail, String password) async {
@@ -164,6 +216,7 @@ class ErpController extends StateNotifier<ErpAppViewState> {
     await _repository.logout();
     state = state.copyWith(
       clearCurrentUser: true,
+      clearLastCompletedSale: true,
       activeTabIndex: 0,
       clearBanner: true,
     );
@@ -260,6 +313,35 @@ class ErpController extends StateNotifier<ErpAppViewState> {
     state = state.copyWith(draftCart: updated, clearBanner: true);
   }
 
+  void setCartItemQuantity(String materialId, double quantity) {
+    if (quantity <= 0) {
+      removeCartItem(materialId);
+      return;
+    }
+    final updated = state.draftCart.map((c) {
+      if (c.materialId != materialId) return c;
+      return SaleCartLineInput(
+        materialId: c.materialId,
+        quantity: quantity,
+        unitSellingPrice: c.unitSellingPrice,
+      );
+    }).toList();
+    state = state.copyWith(draftCart: updated, clearBanner: true);
+  }
+
+  void setCartItemPrice(String materialId, double unitSellingPrice) {
+    if (unitSellingPrice < 0) return;
+    final updated = state.draftCart.map((c) {
+      if (c.materialId != materialId) return c;
+      return SaleCartLineInput(
+        materialId: c.materialId,
+        quantity: c.quantity,
+        unitSellingPrice: unitSellingPrice,
+      );
+    }).toList();
+    state = state.copyWith(draftCart: updated, clearBanner: true);
+  }
+
   void removeCartItem(String materialId) {
     state = state.copyWith(
       draftCart:
@@ -268,14 +350,34 @@ class ErpController extends StateNotifier<ErpAppViewState> {
     );
   }
 
+  void clearDraftCart() {
+    state = state.copyWith(
+      draftCart: const [],
+      draftCustomerNote: '',
+      clearBanner: true,
+    );
+  }
+
   void updateDraftCustomerNote(String note) {
     state = state.copyWith(draftCustomerNote: note);
   }
 
-  void updateDraftAuditCount(String materialId, double physicalCount) {
+  void updateDraftAuditCount(String materialId, double? physicalCount) {
     final nextCounts = Map<String, double>.from(state.draftAuditCounts);
-    nextCounts[materialId] = physicalCount;
+    if (physicalCount == null) {
+      nextCounts.remove(materialId);
+    } else {
+      nextCounts[materialId] = physicalCount;
+    }
     state = state.copyWith(draftAuditCounts: nextCounts, clearBanner: true);
+  }
+
+  void clearDraftAuditCounts() {
+    state = state.copyWith(
+      draftAuditCounts: const {},
+      draftAuditNote: '',
+      clearBanner: true,
+    );
   }
 
   void updateDraftAuditNote(String note) {
@@ -436,6 +538,7 @@ class ErpController extends StateNotifier<ErpAppViewState> {
         erpState: result.state,
         draftCart: const [],
         draftCustomerNote: '',
+        lastCompletedSale: result.sale,
         bannerMessage:
             'Sale ${result.sale.id} completed and deducted from stock.',
         isBannerError: false,
@@ -459,8 +562,10 @@ class ErpController extends StateNotifier<ErpAppViewState> {
         reason: reason,
         actorUsername: actor,
       );
+      final clearReceipt = state.lastCompletedSale?.id == saleId;
       state = state.copyWith(
         erpState: result.state,
+        clearLastCompletedSale: clearReceipt,
         bannerMessage:
             'Sale ${result.sale.id} reversed and inventory quantities restored.',
         isBannerError: false,
@@ -523,13 +628,24 @@ class ErpController extends StateNotifier<ErpAppViewState> {
     try {
       final activeMaterials =
           state.erpState.materials.where((m) => !m.isArchived).toList();
-      final adjustments = activeMaterials.map((m) {
-        final count = state.draftAuditCounts[m.id] ?? m.currentStock;
-        return AuditAdjustmentInput(
-          materialId: m.id,
-          physicalCount: count,
-        );
-      }).toList();
+      final adjustments = state.draftAuditCounts.isNotEmpty
+          ? state.draftAuditCounts.entries
+              .where((e) => activeMaterials.any((m) => m.id == e.key))
+              .map(
+                (e) => AuditAdjustmentInput(
+                  materialId: e.key,
+                  physicalCount: e.value,
+                ),
+              )
+              .toList()
+          : activeMaterials
+              .map(
+                (m) => AuditAdjustmentInput(
+                  materialId: m.id,
+                  physicalCount: m.currentStock,
+                ),
+              )
+              .toList();
 
       final result = await _repository.recordStockAudit(
         state.erpState,

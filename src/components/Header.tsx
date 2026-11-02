@@ -37,7 +37,7 @@ export const Header: React.FC = () => {
         {/* Left: Clean Store Brand Title */}
         <div className="min-w-0 flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[#FEF3C7] text-[#B45309] flex items-center justify-center font-bold text-xs shrink-0">
-            ERP
+            EFA
           </div>
           <h1 className="text-sm sm:text-base font-bold tracking-tight text-[#0F172A] truncate">
             {t.appTitle}
@@ -151,6 +151,15 @@ export const Header: React.FC = () => {
                   <LogOut className="w-4 h-4" />
                   <span>Logout</span>
                 </button>
+              </div>
+
+              {/* About EFA Section */}
+              <div className="pt-2 border-t border-[#E2E8F0] text-[11px] text-[#64748B] space-y-0.5">
+                <p className="font-semibold text-[#0F172A]">
+                  About EFA · v1.0.0 (Build 1)
+                </p>
+                <p>Developer: Ayana Damtew</p>
+                <p>Phone: +251973395537</p>
               </div>
             </div>
           )}
